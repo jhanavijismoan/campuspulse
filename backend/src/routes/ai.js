@@ -256,6 +256,31 @@ async function answerFromRules(message, user) {
     }
   }
 
+  // Student: attendance summary
+  if (user.role === 'student' && (lower.includes('attendance') || lower.includes('present') || lower.includes('absent') || lower.includes('percentage'))) {
+    try {
+      const rows = await pool.query(
+        `SELECT c.subject_name,
+                COUNT(*) FILTER (WHERE ar.status='present') AS present,
+                COUNT(*) AS total,
+                ROUND(COUNT(*) FILTER (WHERE ar.status='present') * 100.0 / NULLIF(COUNT(*),0)) AS pct
+         FROM class_students cs
+         JOIN classes c ON c.id = cs.class_id
+         LEFT JOIN attendance_records ar ON ar.class_student_id = cs.id
+         WHERE cs.student_id = $1
+         GROUP BY c.subject_name`,
+        [user.id]
+      );
+      const nav = JSON.parse(await runTool(ctx, 'navigate_to', { page_key: 'attendance-student', label: 'My Attendance' }));
+      if (nav.path) actions.push({ type: 'navigate', label: nav.label, to: nav.path });
+      if (!rows.rows.length) return { reply: 'No attendance data found for your enrolled classes yet.', actions, source: 'rules' };
+      const low = rows.rows.filter((r) => r.pct < 75);
+      const lines = rows.rows.map((r) => `- ${r.subject_name}: ${r.present}/${r.total} classes (${r.pct}%)`).join('\n');
+      const warning = low.length ? `\n\n⚠️ Below 75%: ${low.map((r) => r.subject_name).join(', ')}` : '';
+      return { reply: `Your attendance summary:\n${lines}${warning}`, actions, source: 'rules' };
+    } catch { /* fall through */ }
+  }
+
   // Generic "where is" navigation
   if (lower.includes('where') || lower.includes('how to') || lower.includes('find') || lower.includes('go to')) {
     const findResult = JSON.parse(await runTool(ctx, 'find_page', { topic: message }));

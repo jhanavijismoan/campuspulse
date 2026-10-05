@@ -83,17 +83,24 @@ renders for the admin account; the student account sees the original student das
 
 ## Admin Dashboard pages
 
-Beyond the main `/` dashboard, admins get a few dedicated full pages (also reachable from the
-sidebar and from each dashboard card's "View All"):
+Beyond the main `/` dashboard, admins get dedicated full pages (reachable from sidebar):
 
-- `/classes` — every class assigned to the admin, each linking to `/classes/:id/attendance`
-  to mark attendance for a specific date.
-- `/tasks` — the full pending-tasks list (assignments/approvals/evaluations), with filtering
-  and a "New Task" form.
-- `/reports` — a fuller version of the Admin Analytics card (engagement stats, upcoming
-  deadlines, top Pulse AI queries).
-- `/announcements` — read-only list for students; for admins this is the full manage view
-  (tabs, publish/delete, create) rather than the trimmed 6-row table shown on the dashboard.
+- `/classes` — every class, each linking to `/classes/:id/attendance` to mark attendance.
+- `/tasks` — full pending-tasks list (assignments/approvals/evaluations), with filtering and a "New Task" form.
+- `/reports` — Admin Analytics (engagement stats, upcoming deadlines, top Pulse AI queries).
+- `/announcements` — full manage view for admins (tabs, publish/delete, AI-powered create).
+- `/student-queries` — all student questions with "AI Draft" reply suggestion and "Send Reply".
+- `/quiz-generator` — AI-generated MCQ quiz (subject, topic, count, difficulty) with "Copy all".
+- `/seating` — Seating Plan manager (create exam sessions, assign halls, publish; export CSV).
+
+## Student Dashboard pages
+
+- `/attendance` — per-subject ring chart with present/absent count and <75% warning.
+- `/timetable` — weekly timetable (day tabs, Mon–Fri) based on enrolled classes.
+- `/cia-marks` — CIA 1 / CIA 2 / Assignment marks per subject with colour coding.
+- `/student-queries` — "Ask a Teacher" form + replies thread; green border = answered.
+- `/cv-builder` — multi-section CV wizard with AI generation and Print/Save as PDF.
+- `/internships` — match-scored listings, resume upload, filters, full detail view.
 
 ## Document uploads
 
@@ -187,34 +194,36 @@ Clicking "View More" opens a full detail view (company, JD, requirements, durati
 deadline) in place — no route change, so the back button returns to your exact scroll
 position and filters.
 
+## Security features
+
+- **Helmet** — standard HTTP security headers (CSP, HSTS, etc.)
+- **Rate limiting** — `/api/auth` capped at 30 requests / 15 min (brute-force protection)
+- **Auth-gated static files** — `/files/*` and `/resumes/*` require a valid JWT (Bearer header or `?token=` query) so files can't be hot-linked
+- **CORS** — reflects the request origin (not `*`); `allowedOrigins` list in `backend/src/index.js`
+- **Role isolation** — every protected route checks `req.user.role`; student endpoints reject admins and vice versa
+- **University isolation** — every query scopes to `req.user.university_id`; cross-tenant data access is impossible
+
+## Global search & Command Palette
+
+- `GET /api/search?q=<query>` — returns `{ pages, announcements, documents }` with a uniform `{ type, id, title, subtitle, url }` shape
+- Topbar search bar (click or **Ctrl+K**) opens the Command Palette — keyboard navigation (↑↓ Enter Esc), debounced queries
+
+## Announcement processing
+
+`POST /api/announcements/process` — extracts structured fields (title, audience, body, action, event_date, priority) from raw text. Uses the configured AI provider when available; otherwise applies a fast regex-based extractor.  
+`POST /api/announcements/:id/notify` — sends idempotent notifications to the matching audience (Roman-numeral semester, program, section matching). Re-calling the endpoint is safe — `notification_sent_at` prevents duplicates.
+
 ## What's real vs. mocked
 
-- **Real**: auth (JWT + bcrypt), all CRUD for events/notifications/documents/internships,
-  Postgres-backed queries for every dashboard widget, role-based access control for admin
-  routes, resume text extraction, CV/match generation, and **Pulse AI** (tool-calling agent
-  that queries the real DB for exams, assignments, internships, documents, and navigation).
-- **Rule-based fallback (always on)**: when no AI provider is configured, Pulse AI and
-  the Announcement Processor fall back to direct DB queries with keyword routing — quick
-  links still work. Set `source: 'rules'` in the response.
-- **Planned/not yet live**: Seating Plan module (`/seating`). Pulse AI currently returns an
-  honest "not live yet" message for seating queries and links to Calendar.
+- **Real**: auth (JWT + bcrypt), all CRUD for events/notifications/documents/internships, Postgres-backed queries for every dashboard widget, role-based access control, resume text extraction, CV/match generation, attendance records, seating assignments, student queries with replies, and **Pulse AI** (tool-calling agent with live DB tools for exams, attendance, seating, assignments, internships, documents, and navigation).
+- **Rule-based fallback (always on)**: when no AI provider is configured, Pulse AI, the Announcement Processor, AI draft replies, and the Quiz Generator all fall back to direct DB queries or template generators — nothing requires an API key to function.
+- **CIA Marks**: static demo data (no live grading system wired up yet).
 
 ## Next steps / things to wire up before production
 
-- Day 2: Plug in the seating module — see Day 2 checklist at the bottom of this file.
-- Real file storage for Documents & Forms (currently placeholder .txt files served from
-  `backend/public/files`) — swap for S3/GCS or similar and store real uploaded PDFs.
+- Real file storage — swap `backend/public/files/` for S3/GCS; update `file_url` in documents table.
 - Password reset / signup flow — currently only seeded demo accounts exist.
-- Move `JWT_SECRET` and DB credentials out of `.env` into a proper secrets manager for
-  production deployment.
+- Move `JWT_SECRET` and DB credentials into a proper secrets manager.
 - Add pagination to notifications/documents/internships once data volume grows.
-- CI: add a test suite (none included yet) before this goes further than a working prototype.
-
-## Day 2: Seating module plug-in checklist
-
-To enable seating on Day 2:
-
-1. Build the seating page and DB schema.
-2. In `backend/src/lib/pageRegistry.js`, find the entry with `key: 'seating'` and set `enabled: true`.
-3. In `backend/src/lib/aiTools.js`, replace the `get_seating` stub's `run()` function with a real DB query scoped to `ctx.userId`.
-4. The page will now appear in navigate actions and `find_page` results for both roles.
+- CI: add a test suite before this goes further than a prototype.
+- CIA Marks: wire `/api/student/cia-marks` to real grade records once a grading system exists.
