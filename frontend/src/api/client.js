@@ -107,7 +107,9 @@ export const api = {
 
   // CV Builder
   getCV: () => request('/cv'),
+  saveCV: (payload) => request('/cv/save', { method: 'POST', body: payload }),
   generateCV: (payload) => request('/cv/generate', { method: 'POST', body: payload }),
+  activateCV: (source) => request('/cv/activate', { method: 'POST', body: { source } }),
 
   // announcements
   processAnnouncement: (raw_text) => request('/announcements/process', { method: 'POST', body: { raw_text } }),

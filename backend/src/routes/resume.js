@@ -69,19 +69,20 @@ router.post('/', requireAuth, (req, res) => {
       }
 
       const { rows } = await pool.query(
-        `INSERT INTO student_resumes (user_id, file_url, original_filename, extracted_text, updated_at)
-         VALUES ($1,$2,$3,$4, now())
+        `INSERT INTO student_resumes (user_id, file_url, original_filename, extracted_text, active_cv_source, updated_at)
+         VALUES ($1,$2,$3,$4,'uploaded', now())
          ON CONFLICT (user_id) DO UPDATE SET
            file_url = EXCLUDED.file_url,
            original_filename = EXCLUDED.original_filename,
            extracted_text = EXCLUDED.extracted_text,
+           active_cv_source = 'uploaded',
            updated_at = now()
-         RETURNING id, file_url, original_filename, updated_at`,
+         RETURNING id, file_url, original_filename, updated_at, active_cv_source`,
         [req.user.id, `/resumes/${req.file.filename}`, req.file.originalname, text]
       );
 
       await pool.query(
-        `UPDATE internship_applications SET match_score = NULL, match_reason = NULL WHERE user_id = $1`,
+        `UPDATE internship_applications SET match_score = NULL, match_reason = NULL, match_breakdown = NULL WHERE user_id = $1`,
         [req.user.id]
       );
       await syncMatchScoresForUser(req.user.id);
