@@ -1,4 +1,5 @@
 import { AlertCircle, FolderKanban, Briefcase } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const STATUS_CONFIG = {
   urgent: {
@@ -36,6 +37,7 @@ function formatTime(iso) {
 }
 
 export default function HighlightCards({ items }) {
+  const navigate = useNavigate();
   if (!items?.length) {
     return (
       <div className="card p-6 text-sm text-gray-400">
@@ -91,7 +93,10 @@ export default function HighlightCards({ items }) {
               </div>
             </div>
 
-            <button className={`mt-auto text-white text-xs font-medium rounded-lg py-2.5 transition ${config.buttonClass}`}>
+            <button
+              onClick={() => item.action_url && navigate(item.action_url)}
+              className={`mt-auto text-white text-xs font-medium rounded-lg py-2.5 transition ${config.buttonClass} ${!item.action_url ? 'opacity-60 cursor-default' : ''}`}
+            >
               {item.action_label || 'View Details'}
             </button>
           </div>

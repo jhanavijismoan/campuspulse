@@ -38,7 +38,8 @@ async function seed() {
       TRUNCATE ai_queries, admin_insights, attendance_records, class_students,
       pending_tasks, student_queries, classes, deadlines, documents,
       internship_applications, internships, notifications, announcements,
-      events, users, universities RESTART IDENTITY CASCADE
+      events, seat_assignments, invigilation_duties, exam_halls, exam_sessions,
+      users, universities RESTART IDENTITY CASCADE
     `);
 
     console.log('Creating university...');
@@ -90,7 +91,7 @@ async function seed() {
       { title: 'Business Communication Presentation', type: 'presentation', date: weekdayDate(1, 10, 0), status: 'upcoming' },
       { title: 'Blue Book Submission', type: 'assignment', date: weekdayDate(1, 23, 59), status: 'due_soon', description: 'End of Day' },
       // Wednesday (has urgent exam)
-      { title: 'CIA 1 Exam', type: 'exam', date: weekdayDate(2, 10, 0), status: 'urgent', description: 'Business Communication', location: 'B204', action_label: 'View Seating Plan', action_url: '/exams/cia-1' },
+      { title: 'CIA 1 Exam', type: 'exam', date: weekdayDate(2, 10, 0), status: 'urgent', description: 'Business Communication', location: 'B204', action_label: 'View Seating Plan', action_url: '/seating' },
       { title: 'View Seating Plan Before Exam', type: 'assignment', date: weekdayDate(2, 9, 0), status: 'urgent' },
       // Thursday
       { title: 'English Language Assignment', type: 'assignment', date: weekdayDate(3, 18, 0), status: 'upcoming' },
@@ -229,12 +230,13 @@ async function seed() {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
         [i.company, i.role, i.location, i.mode, i.stipend_text, i.stipend_amount, i.tags, i.description, i.requirements, i.duration, i.deadline]
       );
-      // No hardcoded match_score — it stays NULL until the student uploads a CV,
-      // at which point real matching kicks in (see backend/src/lib/matching.js).
+      // Demo match scores for seeded data — real matching overwrites these on CV upload.
+      const demoScores = { 'MGO': 92, 'Goldman Sachs': 78, 'EY': 85, 'Zomato': 65 };
+      const matchScore = demoScores[i.company] || null;
       await client.query(
-        `INSERT INTO internship_applications (internship_id, user_id, status)
-         VALUES ($1,$2,'suggested')`,
-        [intern.id, jhanavi.id]
+        `INSERT INTO internship_applications (internship_id, user_id, status, match_score)
+         VALUES ($1,$2,'suggested',$3)`,
+        [intern.id, jhanavi.id, matchScore]
       );
     }
 
@@ -340,6 +342,77 @@ async function seed() {
     await client.query(
       `INSERT INTO admin_insights (university_id, insight_text) VALUES ($1,$2)`,
       [uni.id, 'Students are frequently searching for Blue Book submission guidelines. Consider pinning the document.']
+    );
+
+    // ---------------- Seating / Exam Module ----------------
+    console.log('Creating seating data...');
+
+    // Halls
+    const { rows: [hallB204] } = await client.query(
+      `INSERT INTO exam_halls (university_id, name, capacity, rows, seats_per_row)
+       VALUES ($1,'Hall B204',30,5,6) RETURNING id`,
+      [uni.id]
+    );
+    const { rows: [hallSeminar] } = await client.query(
+      `INSERT INTO exam_halls (university_id, name, capacity, rows, seats_per_row)
+       VALUES ($1,'Seminar Hall 1',24,4,6) RETURNING id`,
+      [uni.id]
+    );
+
+    // Exam session: CIA 1 — matches the CIA 1 Exam event seeded above
+    const ciaDate = new Date(weekdayDate(2, 10, 0));
+    const { rows: [cia1] } = await client.query(
+      `INSERT INTO exam_sessions (university_id, title, exam_date, start_time, end_time, program, semester, published, published_at, created_by)
+       VALUES ($1,'CIA 1 — BBA Semester 3',$2,'10:00','12:00','BBA',3,true,now(),$3) RETURNING id`,
+      [uni.id, ciaDate.toISOString().slice(0, 10), admin.id]
+    );
+
+    // Second session (unpublished — admin can see it, students cannot)
+    const nextWeek = new Date(ciaDate);
+    nextWeek.setDate(ciaDate.getDate() + 7);
+    const { rows: [cia2] } = await client.query(
+      `INSERT INTO exam_sessions (university_id, title, exam_date, start_time, end_time, program, semester, published, created_by)
+       VALUES ($1,'CIA 2 — BBA Semester 3',$2,'10:00','12:00','BBA',3,false,$3) RETURNING id`,
+      [uni.id, nextWeek.toISOString().slice(0, 10), admin.id]
+    );
+
+    // Seat assignments for CIA 1 in Hall B204
+    // All 7 students (jhanavi + 6 extra) — jhanavi gets Row 3, Seat 4 for the demo
+    const allStudents = [jhanavi, ...extraStudents];
+    // Assign jhanavi first so her seat is deterministic: Row 3, Seat 4
+    const seatPlan = [
+      { student: jhanavi, row: 3, seat: 4 },
+      { student: extraStudents[0], row: 1, seat: 1 },
+      { student: extraStudents[1], row: 1, seat: 2 },
+      { student: extraStudents[2], row: 2, seat: 1 },
+      { student: extraStudents[3], row: 2, seat: 2 },
+      { student: extraStudents[4], row: 4, seat: 1 },
+      { student: extraStudents[5], row: 4, seat: 2 },
+    ];
+    for (const { student, row, seat } of seatPlan) {
+      // Get roll_no from class_students if available
+      const { rows: csRows } = await client.query(
+        `SELECT roll_no FROM class_students WHERE student_id = $1 LIMIT 1`,
+        [student.id]
+      );
+      const rollNo = csRows[0]?.roll_no || null;
+      await client.query(
+        `INSERT INTO seat_assignments (session_id, hall_id, student_id, row_number, seat_number, roll_no)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [cia1.id, hallB204.id, student.id, row, seat, rollNo]
+      );
+    }
+
+    // Invigilation duties for CIA 1
+    await client.query(
+      `INSERT INTO invigilation_duties (session_id, hall_id, admin_id, duty_role)
+       VALUES ($1,$2,$3,'chief_invigilator')`,
+      [cia1.id, hallB204.id, admin.id]
+    );
+    await client.query(
+      `INSERT INTO invigilation_duties (session_id, hall_id, admin_id, duty_role)
+       VALUES ($1,$2,$3,'invigilator')`,
+      [cia1.id, hallSeminar.id, admin.id]
     );
 
     await client.query('COMMIT');

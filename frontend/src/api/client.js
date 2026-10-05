@@ -129,6 +129,23 @@ export const api = {
   deletePendingTask: (id) => request(`/pending-tasks/${id}`, { method: 'DELETE' }),
   studentQueries: () => request('/student-queries'),
   updateStudentQuery: (id, payload) => request(`/student-queries/${id}`, { method: 'PATCH', body: payload }),
+
+  // seating
+  mySeating: () => request('/seating/me'),
+  seatingHallChart: (sessionId) => request(`/seating/sessions/${sessionId}/hall-chart`),
+  seatingMyDuties: () => request('/seating/my-duties'),
+  seatingSessions: () => request('/seating/sessions'),
+  seatingCreateSession: (payload) => request('/seating/sessions', { method: 'POST', body: payload }),
+  seatingHalls: () => request('/seating/halls'),
+  seatingCreateHall: (payload) => request('/seating/halls', { method: 'POST', body: payload }),
+  seatingAllocations: (sessionId) => request(`/seating/sessions/${sessionId}/allocations`),
+  seatingAllocate: (sessionId, payload) => request(`/seating/sessions/${sessionId}/allocate`, { method: 'POST', body: payload }),
+  seatingMoveSeat: (assignmentId, payload) => request(`/seating/assignments/${assignmentId}/move`, { method: 'PATCH', body: payload }),
+  seatingImportCsv: (sessionId, rows) => request(`/seating/sessions/${sessionId}/import-csv`, { method: 'POST', body: { rows } }),
+  seatingPublish: (sessionId) => request(`/seating/sessions/${sessionId}/publish`, { method: 'POST' }),
+  seatingUnpublish: (sessionId) => request(`/seating/sessions/${sessionId}/unpublish`, { method: 'POST' }),
+  seatingDuties: (sessionId) => request(`/seating/sessions/${sessionId}/duties`),
+  seatingAssignDuty: (sessionId, payload) => request(`/seating/sessions/${sessionId}/duties`, { method: 'POST', body: payload }),
 };
 
 export function setToken(token) {

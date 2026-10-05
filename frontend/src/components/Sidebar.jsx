@@ -2,7 +2,7 @@ import { NavLink, Link } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, Megaphone, Calendar as CalendarIcon,
   Briefcase, FileText, Sparkles, Bell, User, ChevronDown, Users, ClipboardList,
-  BarChart3, MessageCircle, FileEdit,
+  BarChart3, MessageCircle, FileEdit, MapPin,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { to: '/internships', label: 'Internship Opportunities', icon: Briefcase },
   { to: '/documents', label: 'Documents & Forms', icon: FileText },
   { to: '/cv-builder', label: 'CV Builder', icon: FileEdit },
+  { to: '/seating', label: 'Seating Plan', icon: MapPin },
   { to: '/pulse-ai', label: 'Pulse AI', icon: Sparkles },
 ];
 
@@ -28,6 +29,7 @@ const ADMIN_NAV_ITEMS = [
   { to: '/student-queries', label: 'Student Queries', icon: MessageCircle },
   { to: '/reports', label: 'Reports & Analytics', icon: BarChart3 },
   { to: '/internships', label: 'Internship Opportunities', icon: Briefcase },
+  { to: '/seating', label: 'Seating & Invigilation', icon: MapPin },
   { to: '/pulse-ai', label: 'Pulse AI', icon: Sparkles },
 ];
 

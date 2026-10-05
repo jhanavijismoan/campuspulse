@@ -17,6 +17,10 @@ DROP TABLE IF EXISTS internships CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS announcements CASCADE;
 DROP TABLE IF EXISTS events CASCADE;
+DROP TABLE IF EXISTS seat_assignments CASCADE;
+DROP TABLE IF EXISTS invigilation_duties CASCADE;
+DROP TABLE IF EXISTS exam_halls CASCADE;
+DROP TABLE IF EXISTS exam_sessions CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS universities CASCADE;
 
@@ -214,7 +218,8 @@ CREATE TABLE ai_queries (
   id            SERIAL PRIMARY KEY,
   university_id INTEGER REFERENCES universities(id) ON DELETE SET NULL,
   query_text    TEXT NOT NULL,
-  hit_count     INTEGER NOT NULL DEFAULT 1
+  hit_count     INTEGER NOT NULL DEFAULT 1,
+  UNIQUE (query_text, university_id)
 );
 
 -- CV Builder: one active CV profile per student, holds both the raw Q&A
@@ -244,4 +249,59 @@ CREATE TABLE student_resumes (
   original_filename  TEXT,
   extracted_text     TEXT,
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------- Seating / Exam Module ----------
+
+-- An exam session: one sitting for one exam (e.g. "CIA 1 — BBA Semester 3")
+CREATE TABLE exam_sessions (
+  id              SERIAL PRIMARY KEY,
+  university_id   INTEGER NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
+  title           TEXT NOT NULL,               -- e.g. "CIA 1 — BBA Semester 3"
+  exam_date       DATE NOT NULL,
+  start_time      TIME NOT NULL,
+  end_time        TIME NOT NULL,
+  program         TEXT,                        -- e.g. "BBA", "BCom" — null = all programs
+  semester        INTEGER,                     -- null = all semesters
+  published       BOOLEAN NOT NULL DEFAULT false,
+  published_at    TIMESTAMPTZ,
+  created_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- A physical exam hall
+CREATE TABLE exam_halls (
+  id              SERIAL PRIMARY KEY,
+  university_id   INTEGER NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
+  name            TEXT NOT NULL,               -- e.g. "Hall B204", "Seminar Hall 1"
+  capacity        INTEGER NOT NULL DEFAULT 30,
+  rows            INTEGER NOT NULL DEFAULT 5,
+  seats_per_row   INTEGER NOT NULL DEFAULT 6,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (university_id, name)
+);
+
+-- One row per student–seat assignment within a session+hall
+CREATE TABLE seat_assignments (
+  id              SERIAL PRIMARY KEY,
+  session_id      INTEGER NOT NULL REFERENCES exam_sessions(id) ON DELETE CASCADE,
+  hall_id         INTEGER NOT NULL REFERENCES exam_halls(id) ON DELETE CASCADE,
+  student_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  row_number      INTEGER NOT NULL,            -- 1-based
+  seat_number     INTEGER NOT NULL,            -- 1-based within the row
+  roll_no         TEXT,                        -- denormalised for display
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (session_id, student_id),             -- one seat per student per session
+  UNIQUE (session_id, hall_id, row_number, seat_number)  -- no double-booking
+);
+
+-- Invigilation duty: which admin/teacher covers which hall for which session
+CREATE TABLE invigilation_duties (
+  id              SERIAL PRIMARY KEY,
+  session_id      INTEGER NOT NULL REFERENCES exam_sessions(id) ON DELETE CASCADE,
+  hall_id         INTEGER NOT NULL REFERENCES exam_halls(id) ON DELETE CASCADE,
+  admin_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  duty_role       TEXT NOT NULL DEFAULT 'invigilator',  -- invigilator | chief_invigilator | observer
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (session_id, hall_id, admin_id)
 );

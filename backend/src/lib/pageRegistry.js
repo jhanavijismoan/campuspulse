@@ -147,15 +147,14 @@ const PAGES = [
     keywords: ['queries', 'questions', 'student', 'help', 'support'],
     enabled: true,
   },
-  // Planned — not live yet
   {
     key: 'seating',
     path: '/seating',
     label: 'Seating Plan',
     roles: ['student', 'admin'],
-    description: 'View exam seating assignments.',
-    keywords: ['seating', 'seat', 'hall', 'exam room', 'where am i sitting'],
-    enabled: false,
+    description: 'View your exam seat assignment and hall chart. Admins can manage sessions and invigilation duties.',
+    keywords: ['seating', 'seat', 'hall', 'exam room', 'where am i sitting', 'cia seat', 'invigilation', 'duty'],
+    enabled: true,
   },
 ];
 

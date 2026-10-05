@@ -113,16 +113,33 @@ async function answerFromRules(message, user) {
   }
 
   // Seating
-  if (lower.includes('seat') || lower.includes('seating') || lower.includes('where am i sit')) {
+  if (lower.includes('seat') || lower.includes('seating') || lower.includes('where am i sit') || lower.includes('hall') || lower.includes('invigilat')) {
     const result = await runTool(ctx, 'get_seating', {});
     const data = JSON.parse(result);
-    const nav = JSON.parse(await runTool(ctx, 'navigate_to', { page_key: 'calendar', label: 'Calendar' }));
+    const nav = JSON.parse(await runTool(ctx, 'navigate_to', { page_key: 'seating', label: 'Seating Plan' }));
     if (nav.path) actions.push({ type: 'navigate', label: nav.label, to: nav.path });
-    return {
-      reply: data.message || 'The seating plan module is not live yet. Check the Calendar for your exam schedule.',
-      actions,
-      source: 'rules',
-    };
+    if (!data.available) {
+      return { reply: data.message || 'No seating plan has been published for you yet.', actions, source: 'rules' };
+    }
+    if (user.role === 'student' && data.seats?.length) {
+      const next = data.seats[0];
+      const dateStr = next.exam_date
+        ? new Date(next.exam_date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
+        : '';
+      const timeStr = next.start_time ? ` at ${next.start_time}` : '';
+      const reply = `Your seat for "${next.session_title}" is ${next.hall_name}, Row ${next.row_number}, Seat ${next.seat_number}${next.roll_no ? ` (Roll No: ${next.roll_no})` : ''}.`
+        + (dateStr ? `\nExam: ${dateStr}${timeStr}.` : '')
+        + `\nYou can view the full seating chart on the Seating Plan page.`;
+      return { reply, actions, source: 'rules' };
+    }
+    if (user.role === 'admin' && data.duties?.length) {
+      const list = data.duties.map((d) => {
+        const dateStr = d.exam_date ? new Date(d.exam_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
+        return `- ${d.session_title}: ${d.hall_name} as ${d.duty_role}${dateStr ? ` (${dateStr})` : ''}`;
+      }).join('\n');
+      return { reply: `Your invigilation duties:\n${list}`, actions, source: 'rules' };
+    }
+    return { reply: 'Seating plan is available.', actions, source: 'rules' };
   }
 
   // CIA / exam
@@ -136,6 +153,17 @@ async function answerFromRules(message, user) {
       return { reply: `Your next exam is "${data.title}" on ${date}${data.location ? ` in ${data.location}` : ''}.`, actions, source: 'rules' };
     }
     return { reply: "You don't have any upcoming exams scheduled right now.", actions, source: 'rules' };
+  }
+
+  // Admin submission tracking (must come before generic assignment check)
+  if (user.role === 'admin' && (lower.includes("haven't submitted") || lower.includes('not submitted') || lower.includes('who submitted') || lower.includes('submission'))) {
+    const nav = JSON.parse(await runTool(ctx, 'navigate_to', { page_key: 'tasks', label: 'Assignments' }));
+    if (nav.path) actions.push({ type: 'navigate', label: nav.label, to: nav.path });
+    return {
+      reply: 'Submission tracking is not yet available in the system. You can manage assignment deadlines on the Assignments page.',
+      actions,
+      source: 'rules',
+    };
   }
 
   // Assignments
@@ -201,16 +229,6 @@ async function answerFromRules(message, user) {
       if (!data.tasks?.length) return { reply: 'No pending tasks right now.', actions, source: 'rules' };
       const list = data.tasks.map((t) => `- ${t.title}${t.due_date ? ` (due ${new Date(t.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})` : ''}`).join('\n');
       return { reply: `Pending tasks:\n${list}`, actions, source: 'rules' };
-    }
-
-    if (lower.includes("haven't submitted") || lower.includes('not submitted') || lower.includes('submission')) {
-      const nav = JSON.parse(await runTool(ctx, 'navigate_to', { page_key: 'tasks', label: 'Assignments' }));
-      if (nav.path) actions.push({ type: 'navigate', label: nav.label, to: nav.path });
-      return {
-        reply: 'Submission tracking is not yet available in the system. You can manage assignment deadlines on the Assignments page.',
-        actions,
-        source: 'rules',
-      };
     }
 
     if (lower.includes('student quer') || lower.includes('open quer')) {

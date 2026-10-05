@@ -116,12 +116,38 @@ const search_documents = {
 
 const get_seating = {
   name: 'get_seating',
-  description: 'Get the exam seating plan for the student.',
+  description: 'Get the exam seating plan for the current user. For students: returns their seat assignments. For admins: returns their invigilation duties.',
   parameters: { type: 'object', properties: {}, required: [] },
   roles: ['student', 'admin'],
-  // Day 2: replace this stub with real DB lookup and set enabled: true in pageRegistry.js
-  async run() {
-    return { available: false, message: 'The seating plan module is not live yet in the system.' };
+  async run({ userId, role, pool }) {
+    if (role === 'student') {
+      const { rows } = await pool.query(
+        `SELECT
+           sa.row_number, sa.seat_number, sa.roll_no,
+           es.title AS session_title, es.exam_date, es.start_time, es.end_time,
+           eh.name AS hall_name
+         FROM seat_assignments sa
+         JOIN exam_sessions es ON es.id = sa.session_id
+         JOIN exam_halls eh ON eh.id = sa.hall_id
+         WHERE sa.student_id = $1 AND es.published = true
+         ORDER BY es.exam_date ASC LIMIT 5`,
+        [userId]
+      );
+      if (!rows.length) return { available: false, message: 'No seating plan has been published for you yet.' };
+      return { available: true, seats: rows };
+    }
+    // Admin: return invigilation duties
+    const { rows } = await pool.query(
+      `SELECT id_d.duty_role, es.title AS session_title, es.exam_date, es.start_time, eh.name AS hall_name
+       FROM invigilation_duties id_d
+       JOIN exam_sessions es ON es.id = id_d.session_id
+       JOIN exam_halls eh ON eh.id = id_d.hall_id
+       WHERE id_d.admin_id = $1
+       ORDER BY es.exam_date ASC LIMIT 5`,
+      [userId]
+    );
+    if (!rows.length) return { available: false, message: 'No invigilation duties assigned yet.' };
+    return { available: true, duties: rows };
   },
 };
 

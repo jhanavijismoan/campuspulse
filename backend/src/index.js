@@ -17,6 +17,7 @@ const pendingTasksRoutes = require('./routes/pendingTasks');
 const studentQueriesRoutes = require('./routes/studentQueries');
 const cvRoutes = require('./routes/cv');
 const resumeRoutes = require('./routes/resume');
+const seatingRoutes = require('./routes/seating');
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use('/api/pending-tasks', pendingTasksRoutes);
 app.use('/api/student-queries', studentQueriesRoutes);
 app.use('/api/cv', cvRoutes);
 app.use('/api/resume', resumeRoutes);
+app.use('/api/seating', seatingRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 

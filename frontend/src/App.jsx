@@ -19,6 +19,7 @@ import ClassesPage from './pages/ClassesPage';
 import TasksPage from './pages/TasksPage';
 import ReportsPage from './pages/ReportsPage';
 import CVBuilderPage from './pages/CVBuilderPage';
+import SeatingPage from './pages/SeatingPage';
 
 export default function App() {
   return (
@@ -47,6 +48,7 @@ export default function App() {
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/student-queries" element={<StudentQueriesPage />} />
+            <Route path="/seating" element={<SeatingPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Routes>
