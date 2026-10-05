@@ -314,7 +314,7 @@ function CreateSessionModal({ onClose, onCreated }) {
                 className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Program</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Course</label>
               <input value={form.program} onChange={(e) => set('program', e.target.value)}
                 placeholder="e.g. BBA"
                 className="w-full text-sm rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />

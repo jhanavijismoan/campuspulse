@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Send, Trash2 } from 'lucide-react';
+import { Plus, Send, Trash2, BarChart2 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import AnnouncementProcessor from '../components/AnnouncementProcessor';
@@ -25,10 +25,48 @@ function fmtDate(value) {
   return new Date(value).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+function StatsModal({ announcement, onClose }) {
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    api.announcementStats(announcement.id).then(setStats).catch(() => setStats({}));
+  }, [announcement.id]);
+
+  return (
+    <Modal title="View Stats" onClose={onClose}>
+      {!stats ? (
+        <p className="text-sm text-gray-400 py-4 text-center">Loading...</p>
+      ) : (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">"{announcement.title}"</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg bg-gray-50 p-4 text-center">
+              <p className="text-2xl font-bold text-navy-950">{stats.total_targeted ?? '-'}</p>
+              <p className="text-xs text-gray-500 mt-1">Total targeted</p>
+            </div>
+            <div className="rounded-lg bg-today-50 p-4 text-center">
+              <p className="text-2xl font-bold text-today-600">{stats.viewed ?? '-'}</p>
+              <p className="text-xs text-today-600 mt-1">Viewed</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-4 text-center">
+              <p className="text-2xl font-bold text-navy-950">{stats.not_viewed ?? '-'}</p>
+              <p className="text-xs text-gray-500 mt-1">Not viewed</p>
+            </div>
+            <div className="rounded-lg bg-brand-50 p-4 text-center">
+              <p className="text-2xl font-bold text-brand-600">{stats.pct_viewed ?? '-'}%</p>
+              <p className="text-xs text-brand-600 mt-1">View rate</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 function AdminAnnouncementsView() {
   const [announcements, setAnnouncements] = useState([]);
   const [tab, setTab] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
+  const [statsFor, setStatsFor] = useState(null);
   const [loading, setLoading] = useState(true);
 
   async function load() {
@@ -36,9 +74,7 @@ function AdminAnnouncementsView() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const counts = useMemo(() => ({
     all: announcements.length,
@@ -96,11 +132,11 @@ function AdminAnnouncementsView() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs table-fixed">
               <colgroup>
-                <col className="w-[38%]" />
-                <col className="w-[16%]" />
-                <col className="w-[12%]" />
+                <col className="w-[36%]" />
+                <col className="w-[15%]" />
+                <col className="w-[11%]" />
                 <col className="w-[18%]" />
-                <col className="w-[16%]" />
+                <col className="w-[20%]" />
               </colgroup>
               <thead className="text-gray-500">
                 <tr className="border-b border-gray-100">
@@ -125,6 +161,9 @@ function AdminAnnouncementsView() {
                     <td className="py-3 pr-2 text-navy-950 truncate">{fmtDate(a.scheduled_at || a.event_date || a.created_at)}</td>
                     <td className="py-3">
                       <div className="flex justify-end gap-1">
+                        {['published', 'ready_to_publish'].includes(a.status) && (
+                          <button onClick={() => setStatsFor(a)} className="p-1.5 rounded hover:bg-gray-50" title="View stats"><BarChart2 className="h-3.5 w-3.5 text-brand-500" /></button>
+                        )}
                         {a.status !== 'published' && (
                           <button onClick={() => api.updateAnnouncement(a.id, { status: 'published' }).then(load)} className="p-1.5 rounded hover:bg-gray-50" title="Publish"><Send className="h-3.5 w-3.5" /></button>
                         )}
@@ -144,18 +183,41 @@ function AdminAnnouncementsView() {
         <Modal title="Create Announcement" onClose={() => setModalOpen(false)}>
           <form onSubmit={createAnnouncement} className="space-y-3">
             <input name="title" placeholder="Title" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
-            <input name="audience" placeholder="Audience / target section" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
+            <select name="audience" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
+              <option value="All Students">All Students</option>
+              <option value="I BBA Students">I Year BBA</option>
+              <option value="II BBA Students">II Year BBA</option>
+              <option value="III BBA Students">III Year BBA</option>
+              <option value="IV BBA Students">IV Year BBA</option>
+              <option value="I BCom Students">I Year BCom</option>
+              <option value="II BCom Students">II Year BCom</option>
+              <option value="BBA Section A">BBA Section A</option>
+              <option value="BBA Section B">BBA Section B</option>
+              <option value="BBA Section C">BBA Section C</option>
+              <option value="custom">Custom…</option>
+            </select>
+            <input name="audience_custom" placeholder="Or type custom audience (e.g. II BBA Section C)" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-xs text-gray-500" />
             <textarea name="body" placeholder="Body text" rows={4} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
             <div className="grid grid-cols-2 gap-3">
-              <select name="status" className="rounded-lg border border-gray-200 px-3 py-2 text-sm"><option value="published">Publish now</option><option value="draft">Save draft</option></select>
-              <select name="priority" className="rounded-lg border border-gray-200 px-3 py-2 text-sm"><option>Medium</option><option>High</option><option>Low</option></select>
+              <select name="status" className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                <option value="published">Publish now</option>
+                <option value="draft">Save draft</option>
+              </select>
+              <select name="priority" className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                <option>Medium</option><option>High</option><option>Low</option>
+              </select>
             </div>
-            <select name="schedule_mode" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"><option value="now">Now</option><option value="later">Schedule later</option></select>
+            <select name="schedule_mode" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
+              <option value="now">Now</option>
+              <option value="later">Schedule later</option>
+            </select>
             <input name="scheduled_at" type="datetime-local" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
             <button className="w-full rounded-lg bg-brand-600 text-white text-sm font-semibold py-2.5">Save Announcement</button>
           </form>
         </Modal>
       )}
+
+      {statsFor && <StatsModal announcement={statsFor} onClose={() => setStatsFor(null)} />}
     </div>
   );
 }
@@ -163,10 +225,20 @@ function AdminAnnouncementsView() {
 function StudentAnnouncementsView() {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
 
   useEffect(() => {
     api.announcements().then(setAnnouncements).finally(() => setLoading(false));
   }, []);
+
+  function toggleExpand(ann) {
+    if (expanded === ann.id) {
+      setExpanded(null);
+    } else {
+      setExpanded(ann.id);
+      api.viewAnnouncement(ann.id).catch(() => {});
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
@@ -174,21 +246,29 @@ function StudentAnnouncementsView() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
         <div className="card p-5">
-          <h2 className="font-semibold text-navy-950 mb-4">Published &amp; Drafted</h2>
+          <h2 className="font-semibold text-navy-950 mb-4">Latest Announcements</h2>
           {loading ? (
             <p className="text-sm text-gray-400">Loading...</p>
           ) : (
             <div className="space-y-3">
               {announcements.map((a) => (
                 <div key={a.id} className="pb-3 border-b border-gray-50 last:border-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-navy-950">{a.title}</p>
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${PRIORITY_CLASS[a.priority] || 'bg-gray-50 text-gray-500'}`}>
-                      {a.priority}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500">{a.audience}</p>
-                  <p className="text-xs text-gray-400 mt-1">{a.body || a.action}</p>
+                  <button className="w-full text-left" onClick={() => toggleExpand(a)}>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-medium text-navy-950">{a.title}</p>
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${PRIORITY_CLASS[a.priority] || 'bg-gray-50 text-gray-500'}`}>
+                        {a.priority}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">{a.audience}</p>
+                    {expanded !== a.id && <p className="text-xs text-gray-400 mt-1 line-clamp-1">{a.body || a.action}</p>}
+                  </button>
+                  {expanded === a.id && (
+                    <div className="mt-2 text-xs text-gray-600 bg-gray-50 rounded-lg p-3 leading-relaxed">
+                      {a.body || a.raw_text}
+                      {a.action && <p className="mt-2 font-medium text-brand-600">Action: {a.action}</p>}
+                    </div>
+                  )}
                 </div>
               ))}
               {!announcements.length && <p className="text-sm text-gray-400">No announcements yet.</p>}

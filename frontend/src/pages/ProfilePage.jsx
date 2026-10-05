@@ -29,7 +29,7 @@ export default function ProfilePage() {
           </div>
           {user?.program && (
             <div className="flex justify-between">
-              <span className="text-gray-400">Program</span>
+              <span className="text-gray-400">Course</span>
               <span className="text-navy-950 font-medium">{user.program}</span>
             </div>
           )}

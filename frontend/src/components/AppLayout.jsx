@@ -11,12 +11,15 @@ export default function AppLayout() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  useEffect(() => {
-    api
-      .notifications()
-      .then((rows) => setUnreadCount(rows.filter((n) => !n.read).length))
-      .catch(() => {});
+  const refreshUnreadCount = useCallback(() => {
+    api.notificationCount().then((d) => setUnreadCount(d.count || 0)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    refreshUnreadCount();
+    const interval = setInterval(refreshUnreadCount, 60_000);
+    return () => clearInterval(interval);
+  }, [refreshUnreadCount]);
 
   const openPalette = useCallback(() => setPaletteOpen(true), []);
   const closePalette = useCallback(() => setPaletteOpen(false), []);
@@ -39,7 +42,7 @@ export default function AppLayout() {
         <div className="flex-1 flex flex-col min-w-0">
           <Topbar unreadCount={unreadCount} onOpenPalette={openPalette} />
           <main className="flex-1 p-6 overflow-x-hidden">
-            <Outlet context={{ unreadCount, setUnreadCount }} />
+            <Outlet context={{ unreadCount, setUnreadCount, refreshUnreadCount }} />
           </main>
         </div>
       </div>

@@ -23,6 +23,7 @@ const resumeRoutes = require('./routes/resume');
 const seatingRoutes = require('./routes/seating');
 const searchRoutes = require('./routes/search');
 const studentRoutes = require('./routes/student');
+const calendarEventsRoutes = require('./routes/calendarEvents');
 
 const app = express();
 
@@ -107,6 +108,7 @@ app.use('/api/student-queries', studentQueriesRoutes);
 app.use('/api/cv', cvRoutes);
 app.use('/api/resume', resumeRoutes);
 app.use('/api/seating', seatingRoutes);
+app.use('/api/calendar-events', calendarEventsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/student', studentRoutes);
 

@@ -95,6 +95,10 @@ CREATE TABLE notifications (
   body          TEXT NOT NULL,
   severity      TEXT NOT NULL DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'urgent', 'success')),
   read          BOOLEAN NOT NULL DEFAULT false,
+  read_at       TIMESTAMPTZ,
+  action_url    TEXT,
+  related_type  TEXT,
+  related_id    INTEGER,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -133,14 +137,50 @@ CREATE TABLE internship_applications (
 -- ---------- Documents & forms ----------
 
 CREATE TABLE documents (
-  id            SERIAL PRIMARY KEY,
-  university_id INTEGER REFERENCES universities(id) ON DELETE SET NULL,
-  title         TEXT NOT NULL,
-  category      TEXT,
-  audience      TEXT,
-  file_url      TEXT NOT NULL,
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  id              SERIAL PRIMARY KEY,
+  university_id   INTEGER REFERENCES universities(id) ON DELETE SET NULL,
+  title           TEXT NOT NULL,
+  category        TEXT,
+  audience        TEXT,
+  file_url        TEXT NOT NULL,
+  taken_down      BOOLEAN NOT NULL DEFAULT false,
+  taken_down_at   TIMESTAMPTZ,
+  taken_down_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ---------- Announcement view tracking ----------
+
+CREATE TABLE announcement_views (
+  id              SERIAL PRIMARY KEY,
+  announcement_id INTEGER NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+  user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  viewed_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (announcement_id, user_id)
+);
+CREATE INDEX idx_ann_views_ann ON announcement_views(announcement_id);
+
+-- ---------- Admin calendar events (university-scoped, audience-targeted) ----------
+
+CREATE TABLE calendar_events (
+  id                    SERIAL PRIMARY KEY,
+  university_id         INTEGER NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
+  created_by            INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  title                 TEXT NOT NULL,
+  description           TEXT,
+  event_type            TEXT NOT NULL DEFAULT 'general' CHECK (event_type IN ('exam','holiday','event','deadline','general')),
+  event_date            DATE NOT NULL,
+  start_time            TIME,
+  end_time              TIME,
+  location              TEXT,
+  audience              TEXT,
+  published             BOOLEAN NOT NULL DEFAULT false,
+  notify_students       BOOLEAN NOT NULL DEFAULT false,
+  notification_sent_at  TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_cal_events_univ ON calendar_events(university_id, event_date);
 
 -- ---------- Admin teaching workflow ----------
 

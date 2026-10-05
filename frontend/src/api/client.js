@@ -43,6 +43,7 @@ export const api = {
 
   // notifications
   notifications: () => request('/notifications'),
+  notificationCount: () => request('/notifications/count'),
   markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'POST' }),
   markAllNotificationsRead: () => request('/notifications/read-all', { method: 'POST' }),
 
@@ -95,6 +96,8 @@ export const api = {
     return data;
   },
   deleteDocument: (id) => request(`/documents/${id}`, { method: 'DELETE' }),
+  takeDownDocument: (id) => request(`/documents/${id}/takedown`, { method: 'PATCH' }),
+  restoreDocument: (id) => request(`/documents/${id}/restore`, { method: 'PATCH' }),
 
   // CV Builder
   getCV: () => request('/cv'),
@@ -109,6 +112,19 @@ export const api = {
   },
   updateAnnouncement: (id, payload) => request(`/announcements/${id}`, { method: 'PATCH', body: payload }),
   deleteAnnouncement: (id) => request(`/announcements/${id}`, { method: 'DELETE' }),
+  viewAnnouncement: (id) => request(`/announcements/${id}/view`, { method: 'POST' }),
+  announcementStats: (id) => request(`/announcements/${id}/stats`),
+
+  // calendar events (admin-broadcast)
+  calendarEvents: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/calendar-events${qs ? `?${qs}` : ''}`);
+  },
+  createCalendarEvent: (payload) => request('/calendar-events', { method: 'POST', body: payload }),
+  updateCalendarEvent: (id, payload) => request(`/calendar-events/${id}`, { method: 'PATCH', body: payload }),
+  deleteCalendarEvent: (id) => request(`/calendar-events/${id}`, { method: 'DELETE' }),
+  publishCalendarEvent: (id) => request(`/calendar-events/${id}/publish`, { method: 'POST' }),
+  unpublishCalendarEvent: (id) => request(`/calendar-events/${id}/unpublish`, { method: 'POST' }),
 
   // analytics (admin)
   analyticsSummary: () => request('/analytics/summary'),
