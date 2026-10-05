@@ -350,6 +350,45 @@ const get_admin_class_attendance_summary = {
   },
 };
 
+const get_internship_opportunities = {
+  name: 'get_internship_opportunities',
+  description: 'Get internship opportunities available to the student, with match scores if they have a CV.',
+  parameters: { type: 'object', properties: { limit: { type: 'integer', description: 'Max results, default 5' } }, required: [] },
+  roles: ['student'],
+  async run({ userId, pool }, { limit = 5 }) {
+    const { rows } = await pool.query(
+      `SELECT i.company_name, i.role_title, i.location, i.work_mode, i.stipend_text, i.stipend_amount,
+              i.application_deadline, ia.match_score, ia.status AS application_status
+       FROM internships i
+       JOIN internship_applications ia ON ia.internship_id = i.id
+       WHERE ia.user_id = $1 AND i.published = true AND i.taken_down = false
+         AND (i.application_deadline IS NULL OR i.application_deadline >= CURRENT_DATE)
+       ORDER BY ia.match_score DESC NULLS LAST, i.application_deadline ASC NULLS LAST
+       LIMIT $2`,
+      [userId, Math.min(limit, 20)]
+    );
+    return { internships: rows, count: rows.length };
+  },
+};
+
+const get_admin_internship_summary = {
+  name: 'get_admin_internship_summary',
+  description: 'Get a summary of internship listings this admin has created, including application counts.',
+  parameters: { type: 'object', properties: {}, required: [] },
+  roles: ['admin'],
+  async run({ userId, universityId, pool }) {
+    const { rows } = await pool.query(
+      `SELECT i.company_name, i.role_title, i.published, i.taken_down,
+              i.application_deadline,
+              (SELECT COUNT(*) FROM internship_applications ia WHERE ia.internship_id = i.id AND ia.status != 'suggested') AS applicant_count
+       FROM internships i WHERE i.university_id = $1
+       ORDER BY i.created_at DESC LIMIT 10`,
+      [universityId]
+    );
+    return { internships: rows, total: rows.length };
+  },
+};
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 
 const ALL_TOOLS = [
@@ -369,6 +408,8 @@ const ALL_TOOLS = [
   get_student_attendance,
   get_student_attendance_by_subject,
   get_admin_class_attendance_summary,
+  get_internship_opportunities,
+  get_admin_internship_summary,
   find_page,
   navigate_to,
 ];

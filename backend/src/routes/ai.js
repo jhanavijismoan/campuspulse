@@ -26,7 +26,7 @@ const STUDENT_SUGGESTED_PROMPTS = [
   'Which subject has my lowest attendance?',
   'When is my next CIA?',
   'What assignments are due this week?',
-  'Are there internships suitable for me?',
+  'Show me internships matching my profile',
 ];
 
 const ADMIN_SUGGESTED_PROMPTS = [
@@ -34,7 +34,7 @@ const ADMIN_SUGGESTED_PROMPTS = [
   'What are my pending tasks?',
   'What open student queries do I have?',
   'Where can I mark attendance?',
-  'Show my upcoming events',
+  'Show internship listings I created',
 ];
 
 router.get('/suggestions', requireAuth, (req, res) => {

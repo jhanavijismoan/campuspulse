@@ -52,7 +52,13 @@ export const api = {
     const qs = new URLSearchParams(params).toString();
     return request(`/internships${qs ? `?${qs}` : ''}`);
   },
+  internship: (id) => request(`/internships/${id}`),
   createInternship: (payload) => request('/internships', { method: 'POST', body: payload }),
+  updateInternship: (id, payload) => request(`/internships/${id}`, { method: 'PATCH', body: payload }),
+  publishInternship: (id) => request(`/internships/${id}/publish`, { method: 'POST' }),
+  unpublishInternship: (id) => request(`/internships/${id}/unpublish`, { method: 'POST' }),
+  takedownInternship: (id) => request(`/internships/${id}/takedown`, { method: 'POST' }),
+  restoreInternship: (id) => request(`/internships/${id}/restore`, { method: 'POST' }),
   applyToInternship: (id) => request(`/internships/${id}/apply`, { method: 'POST' }),
 
   // resume (used for internship matching)
