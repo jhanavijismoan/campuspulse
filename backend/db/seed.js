@@ -415,6 +415,38 @@ async function seed() {
       [cia1.id, hallSeminar.id, admin.id]
     );
 
+    // ---------------- Attendance Records (for student attendance page) ----------------
+    console.log('Creating attendance records...');
+    // Generate 20 past class dates for Business Communication (classRows[0]) and Marketing Management (classRows[1])
+    const today = new Date();
+    const attendanceData = [
+      // [classIndex, statuses over 20 classes] — Jhanavi has 87% in BComm, 70% in Marketing
+      { classIdx: 0, statuses: ['present','present','present','absent','present','present','present','present','absent','present','present','present','present','present','present','absent','present','present','present','present'] },
+      { classIdx: 1, statuses: ['present','absent','present','present','absent','present','absent','present','present','absent','present','present','present','absent','present','present','absent','present','present','present'] },
+      { classIdx: 2, statuses: ['present','present','present','present','absent','present','present','absent','present','present','present','present','absent','present','present','present','present','present','absent','present'] },
+      { classIdx: 3, statuses: ['present','present','absent','present','present','present','absent','present','present','present','present','absent','present','present','present','absent','present','present','present','present'] },
+      { classIdx: 4, statuses: ['present','present','present','absent','present','present','present','absent','present','present','absent','present','present','present','present','present','absent','present','present','present'] },
+    ];
+    for (const { classIdx, statuses } of attendanceData) {
+      const klass = classRows[classIdx];
+      // Get Jhanavi's class_student record for this class
+      const { rows: [cs] } = await client.query(
+        `SELECT id FROM class_students WHERE class_id = $1 AND student_id = $2`,
+        [klass.id, jhanavi.id]
+      );
+      if (!cs) continue;
+      for (let i = 0; i < statuses.length; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - (statuses.length - i) * 2); // Every other day going back
+        const dateStr = d.toISOString().slice(0, 10);
+        await client.query(
+          `INSERT INTO attendance_records (class_id, class_student_id, attendance_date, status, marked_by)
+           VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
+          [klass.id, cs.id, dateStr, statuses[i], admin.id]
+        );
+      }
+    }
+
     await client.query('COMMIT');
     console.log('Seed complete. Login: jhanavi@mountcarmel.edu / password123 (student), admin@mountcarmel.edu / password123 (admin)');
   } catch (err) {

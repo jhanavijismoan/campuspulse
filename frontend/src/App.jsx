@@ -20,6 +20,9 @@ import TasksPage from './pages/TasksPage';
 import ReportsPage from './pages/ReportsPage';
 import CVBuilderPage from './pages/CVBuilderPage';
 import SeatingPage from './pages/SeatingPage';
+import AttendancePage from './pages/AttendancePage';
+import TimetablePage from './pages/TimetablePage';
+import CIAMarksPage from './pages/CIAMarksPage';
 
 export default function App() {
   return (
@@ -49,6 +52,9 @@ export default function App() {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/student-queries" element={<StudentQueriesPage />} />
             <Route path="/seating" element={<SeatingPage />} />
+            <Route path="/attendance" element={<AttendancePage />} />
+            <Route path="/timetable" element={<TimetablePage />} />
+            <Route path="/cia-marks" element={<CIAMarksPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Routes>

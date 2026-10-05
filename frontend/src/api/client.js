@@ -130,6 +130,10 @@ export const api = {
   studentQueries: () => request('/student-queries'),
   updateStudentQuery: (id, payload) => request(`/student-queries/${id}`, { method: 'PATCH', body: payload }),
 
+  // student academic pages
+  studentAttendance: () => request('/student/attendance'),
+  studentTimetable: () => request('/student/timetable'),
+
   // search
   search: (q) => request(`/search?q=${encodeURIComponent(q)}`),
 

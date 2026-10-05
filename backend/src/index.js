@@ -22,6 +22,7 @@ const cvRoutes = require('./routes/cv');
 const resumeRoutes = require('./routes/resume');
 const seatingRoutes = require('./routes/seating');
 const searchRoutes = require('./routes/search');
+const studentRoutes = require('./routes/student');
 
 const app = express();
 
@@ -107,6 +108,7 @@ app.use('/api/cv', cvRoutes);
 app.use('/api/resume', resumeRoutes);
 app.use('/api/seating', seatingRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/student', studentRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 
