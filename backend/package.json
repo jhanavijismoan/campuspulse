@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "seed": "node db/seed.js"
+    "seed": "node db/seed.js",
+    "ai:smoke": "node scripts/ai-smoke.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

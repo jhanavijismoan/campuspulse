@@ -122,21 +122,40 @@ original artwork:
 - `logo-full.png` — mark + "CampusPulse" wordmark (no tagline), used on the login screen.
 - `logo.png` — the full mark + wordmark + tagline, kept for any future full-branding use.
 
-## Local AI via Ollama (free, no API key)
+## AI provider (Pulse AI, CV Builder, internship matching)
 
-CV Builder and internship matching both use a shared helper (`backend/src/lib/ai.js`) that
-calls a locally-running [Ollama](https://ollama.com) model — free, no API key, nothing leaves
-your machine. Setup:
+All AI features share one provider layer (`backend/src/lib/ai.js`). Auto-detection order:
 
-1. Install Ollama: https://ollama.com/download
-2. Pull a model, e.g. `ollama pull llama3.2` (small/fast) or `ollama pull llama3.1` (larger,
-   better quality if your machine can handle it)
-3. In `backend/.env`, set `OLLAMA_MODEL=llama3.2` (matching whatever you pulled)
-4. Make sure the Ollama app is running, then restart the backend (`npm run dev`)
+1. **Groq** (recommended) — fast, free hosted inference. Get a key at https://console.groq.com and set `GROQ_API_KEY` in `.env`.
+2. **Gemini** — Google AI Studio free tier. Get a key at https://aistudio.google.com and set `GEMINI_API_KEY`.
+3. **Ollama** (optional/legacy) — fully offline, heavy on laptops. Set `OLLAMA_MODEL` only if you want no data leaving your machine.
+4. **None** — rule-based fallback. Everything still works; Pulse AI answers from direct DB queries, CV Builder and matching use the keyword scorer.
 
-Leave `OLLAMA_MODEL` blank and both features still work out of the box using a rule-based
-fallback (simpler template text for CV Builder, keyword-overlap scoring for matching) — this
-is what happens if Ollama isn't running, or a request to it fails.
+Override the auto-detection by setting `AI_PROVIDER=groq|gemini|ollama|none`.
+
+**Privacy note**: free tiers of Groq and Gemini are rate-limited per model and have no strong data-privacy guarantees. Do not send resume text or other sensitive personal data to them beyond what a tool requires. Ollama is the fully offline option if privacy is a hard requirement.
+
+**Model names change.** Verify current free model names at:
+- Groq: https://console.groq.com/docs/models
+- Gemini: https://ai.google.dev/gemini-api/docs/models
+
+### Pulse AI `/api/ai/ask` contract
+
+Request:
+```json
+{ "message": "When is my next CIA?", "history": [{ "role": "user", "text": "..." }, { "role": "ai", "text": "..." }] }
+```
+
+Response:
+```json
+{ "reply": "Your next CIA is ...", "actions": [{ "type": "navigate", "label": "Calendar", "to": "/calendar" }], "source": "groq" }
+```
+
+`source` is `groq | gemini | ollama | rules`. `actions` are validated server-side against the page registry (max 3, deduplicated by path).
+
+### Page registry
+
+`backend/src/lib/pageRegistry.js` is the single source of truth for all routes, their labels, roles, and keywords. The AI agent uses this to produce `navigate` actions. Pages with `enabled: false` are never returned as navigation targets.
 
 ## CV Builder (student-only)
 
@@ -172,21 +191,17 @@ position and filters.
 
 - **Real**: auth (JWT + bcrypt), all CRUD for events/notifications/documents/internships,
   Postgres-backed queries for every dashboard widget, role-based access control for admin
-  routes, resume text extraction, and CV/match generation (real local-AI calls via Ollama when
-  `OLLAMA_MODEL` is set).
-- **Mocked (by design, per your instructions)**: the "AI" in Pulse AI and the Announcement
-  Processor. Both are rule-based stand-ins that live in `backend/src/routes/ai.js` and
-  `backend/src/routes/announcements.js`. Pulse AI's mock still queries the real database, so
-  its answers ("when's my next CIA," "what's due this week") are accurate — it just doesn't use
-  an LLM to generate the natural-language response. Swap in a call to `generateJSON()` from
-  `backend/src/lib/ai.js` (the same Ollama helper CV Builder and matching use) inside
-  `answerFromRules()` / `mockExtractAnnouncement()` when you're ready; the request/response
-  contract for both routes is already shaped for a drop-in replacement.
+  routes, resume text extraction, CV/match generation, and **Pulse AI** (tool-calling agent
+  that queries the real DB for exams, assignments, internships, documents, and navigation).
+- **Rule-based fallback (always on)**: when no AI provider is configured, Pulse AI and
+  the Announcement Processor fall back to direct DB queries with keyword routing — quick
+  links still work. Set `source: 'rules'` in the response.
+- **Planned/not yet live**: Seating Plan module (`/seating`). Pulse AI currently returns an
+  honest "not live yet" message for seating queries and links to Calendar.
 
 ## Next steps / things to wire up before production
 
-- Replace the mocked AI routes with real calls to `generateJSON()` (system prompt + the same
-  DB context already being fetched) — same pattern as CV Builder / internship matching.
+- Day 2: Plug in the seating module — see Day 2 checklist at the bottom of this file.
 - Real file storage for Documents & Forms (currently placeholder .txt files served from
   `backend/public/files`) — swap for S3/GCS or similar and store real uploaded PDFs.
 - Password reset / signup flow — currently only seeded demo accounts exist.
@@ -194,3 +209,12 @@ position and filters.
   production deployment.
 - Add pagination to notifications/documents/internships once data volume grows.
 - CI: add a test suite (none included yet) before this goes further than a working prototype.
+
+## Day 2: Seating module plug-in checklist
+
+To enable seating on Day 2:
+
+1. Build the seating page and DB schema.
+2. In `backend/src/lib/pageRegistry.js`, find the entry with `key: 'seating'` and set `enabled: true`.
+3. In `backend/src/lib/aiTools.js`, replace the `get_seating` stub's `run()` function with a real DB query scoped to `ctx.userId`.
+4. The page will now appear in navigate actions and `find_page` results for both roles.
