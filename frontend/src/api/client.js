@@ -128,7 +128,11 @@ export const api = {
   updatePendingTask: (id, payload) => request(`/pending-tasks/${id}`, { method: 'PATCH', body: payload }),
   deletePendingTask: (id) => request(`/pending-tasks/${id}`, { method: 'DELETE' }),
   studentQueries: () => request('/student-queries'),
+  myStudentQueries: () => request('/student-queries/mine'),
+  submitStudentQuery: (payload) => request('/student-queries', { method: 'POST', body: payload }),
   updateStudentQuery: (id, payload) => request(`/student-queries/${id}`, { method: 'PATCH', body: payload }),
+  draftQueryReply: (id) => request(`/student-queries/${id}/draft-reply`, { method: 'POST' }),
+  generateQuiz: (payload) => request('/ai/generate-quiz', { method: 'POST', body: payload }),
 
   // student academic pages
   studentAttendance: () => request('/student/attendance'),

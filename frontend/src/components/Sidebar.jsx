@@ -2,7 +2,7 @@ import { NavLink, Link } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, Megaphone, Calendar as CalendarIcon,
   Briefcase, FileText, Sparkles, Bell, User, ChevronDown, Users, ClipboardList,
-  BarChart3, MessageCircle, FileEdit, MapPin, BookOpen, ClipboardCheck, GraduationCap,
+  BarChart3, MessageCircle, FileEdit, MapPin, BookOpen, ClipboardCheck, GraduationCap, HelpCircle, Brain,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { to: '/attendance', label: 'My Attendance', icon: ClipboardCheck },
   { to: '/timetable', label: 'Timetable', icon: CalendarDays },
   { to: '/cia-marks', label: 'CIA Marks', icon: GraduationCap },
+  { to: '/student-queries', label: 'Ask a Teacher', icon: HelpCircle },
   { to: '/pulse-ai', label: 'Pulse AI', icon: Sparkles },
 ];
 
@@ -33,6 +34,7 @@ const ADMIN_NAV_ITEMS = [
   { to: '/reports', label: 'Reports & Analytics', icon: BarChart3 },
   { to: '/internships', label: 'Internship Opportunities', icon: Briefcase },
   { to: '/seating', label: 'Seating & Invigilation', icon: MapPin },
+  { to: '/quiz-generator', label: 'Quiz Generator', icon: Brain },
   { to: '/pulse-ai', label: 'Pulse AI', icon: Sparkles },
 ];
 

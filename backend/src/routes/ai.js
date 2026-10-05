@@ -397,4 +397,54 @@ router.post('/ask', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/ai/generate-quiz — admin generates quiz questions for a topic
+router.post('/generate-quiz', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+  const { subject, topic, count = 5, difficulty = 'medium' } = req.body;
+  if (!subject || !topic) return res.status(400).json({ error: 'subject and topic are required' });
+  if (count < 1 || count > 20) return res.status(400).json({ error: 'count must be 1-20' });
+
+  if (!isAiConfigured()) {
+    // Rule-based fallback: generic placeholder questions
+    const questions = Array.from({ length: Math.min(count, 3) }, (_, i) => ({
+      question: `${topic} — Question ${i + 1}: [Insert your question here]`,
+      options: ['Option A', 'Option B', 'Option C', 'Option D'],
+      answer: 'Option A',
+      explanation: 'Review the relevant section of the textbook.',
+    }));
+    return res.json({ questions, source: 'fallback' });
+  }
+
+  try {
+    const { generateJSON } = require('../lib/ai');
+    const prompt = `You are an experienced college teacher. Generate exactly ${count} ${difficulty}-difficulty multiple-choice quiz questions for students studying "${subject}" on the topic "${topic}".
+
+Return ONLY a valid JSON object with this exact structure:
+{
+  "questions": [
+    {
+      "question": "Question text here",
+      "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
+      "answer": "A) Option 1",
+      "explanation": "Brief 1-sentence explanation of the correct answer"
+    }
+  ]
+}
+
+Requirements:
+- Each question must have exactly 4 options labeled A), B), C), D)
+- The "answer" field must exactly match one of the "options"
+- Questions should be appropriate for undergraduate college students
+- Vary question types (factual, applied, analytical)`;
+
+    const result = await generateJSON(prompt);
+    const questions = Array.isArray(result.questions) ? result.questions.slice(0, count) : [];
+    res.json({ questions, source: 'ai' });
+  } catch (err) {
+    console.error('Quiz generation failed:', err.message);
+    res.status(500).json({ error: 'Quiz generation failed: ' + err.message });
+  }
+});
+
 module.exports = router;

@@ -23,6 +23,7 @@ import SeatingPage from './pages/SeatingPage';
 import AttendancePage from './pages/AttendancePage';
 import TimetablePage from './pages/TimetablePage';
 import CIAMarksPage from './pages/CIAMarksPage';
+import QuizGeneratorPage from './pages/QuizGeneratorPage';
 
 export default function App() {
   return (
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="/attendance" element={<AttendancePage />} />
             <Route path="/timetable" element={<TimetablePage />} />
             <Route path="/cia-marks" element={<CIAMarksPage />} />
+            <Route path="/quiz-generator" element={<QuizGeneratorPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Routes>

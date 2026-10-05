@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { generateJSON, isAiConfigured } = require('../lib/ai');
 
 const router = express.Router();
 
@@ -96,7 +97,34 @@ function mockExtractAnnouncement(rawText) {
 router.post('/process', requireAuth, requireAdmin, async (req, res) => {
   const { raw_text } = req.body;
   if (!raw_text || !raw_text.trim()) return res.status(400).json({ error: 'raw_text is required' });
-  res.json({ extracted: mockExtractAnnouncement(raw_text), source: 'mock' });
+
+  if (isAiConfigured()) {
+    try {
+      const prompt = `You are an assistant for a college administrative system. Extract structured information from the following announcement text.
+
+Return ONLY a valid JSON object with these fields:
+{
+  "title": "Short 1-line title (max 80 chars)",
+  "audience": "Who this is for, e.g. 'II BBA Students', 'All Students', 'Staff', 'III BCom Section A'",
+  "body": "Cleaned body text (max 500 chars)",
+  "action": "What the reader must do (1 sentence, e.g. 'Check the seating plan before the exam')",
+  "event_date_text": "Date mentioned, if any (e.g. '14th August 2024'), or null",
+  "priority": "High, Medium, or Low"
+}
+
+Announcement text:
+"""
+${raw_text.slice(0, 2000)}
+"""`;
+
+      const extracted = await generateJSON(prompt);
+      return res.json({ extracted, source: 'ai' });
+    } catch (err) {
+      console.error('AI extraction failed, using rules fallback:', err.message);
+    }
+  }
+
+  res.json({ extracted: mockExtractAnnouncement(raw_text), source: 'rules' });
 });
 
 // ── Create announcement ───────────────────────────────────────────────────────

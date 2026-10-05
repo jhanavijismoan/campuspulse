@@ -192,6 +192,7 @@ CREATE TABLE student_queries (
   class_id    INTEGER REFERENCES classes(id) ON DELETE SET NULL,
   subject     TEXT NOT NULL,
   message     TEXT NOT NULL,
+  reply       TEXT,
   answered    BOOLEAN NOT NULL DEFAULT false,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   answered_at TIMESTAMPTZ
