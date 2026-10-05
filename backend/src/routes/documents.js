@@ -10,6 +10,21 @@ const router = express.Router();
 const filesDir = path.join(__dirname, '..', '..', 'public', 'files');
 fs.mkdirSync(filesDir, { recursive: true });
 
+// Allowed extensions + MIME types for document uploads
+const ALLOWED_EXTS = new Set(['.pdf', '.docx', '.doc', '.txt', '.xlsx', '.xls', '.pptx', '.ppt', '.png', '.jpg', '.jpeg']);
+const ALLOWED_MIMES = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+  'text/plain',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-powerpoint',
+  'image/png',
+  'image/jpeg',
+]);
+
 function slugify(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'document';
 }
@@ -17,19 +32,40 @@ function slugify(text) {
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, filesDir),
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || '';
+    const ext = path.extname(file.originalname).toLowerCase() || '';
     const base = slugify(path.basename(file.originalname, ext) || req.body.title || 'document');
-    const unique = `${base}-${Date.now()}${ext}`;
-    cb(null, unique);
+    cb(null, `${base}-${Date.now()}${ext}`);
   },
 });
-const upload = multer({ storage, limits: { fileSize: 15 * 1024 * 1024 } });
 
+const upload = multer({
+  storage,
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!ALLOWED_EXTS.has(ext)) {
+      return cb(new Error(`File type '${ext}' not allowed. Accepted: PDF, DOCX, TXT, XLSX, PPTX, PNG, JPG.`), false);
+    }
+    if (file.mimetype && !ALLOWED_MIMES.has(file.mimetype) && !file.mimetype.startsWith('image/')) {
+      return cb(new Error(`MIME type '${file.mimetype}' not accepted.`), false);
+    }
+    cb(null, true);
+  },
+});
+
+// GET /api/documents — list, filtered by university + audience
 router.get('/', requireAuth, async (req, res) => {
   const { category, q } = req.query;
   try {
-    let query = `SELECT * FROM documents WHERE 1=1`;
-    const params = [];
+    const params = [req.user.university_id];
+    let query = `SELECT * FROM documents WHERE university_id = $1`;
+
+    if (req.user.role === 'student') {
+      // Students only see documents meant for all students or their program
+      query += ` AND (audience IS NULL OR audience ILIKE '%all%' OR audience ILIKE $2)`;
+      params.push(`%${req.user.program || ''}%`);
+    }
+
     if (category) {
       params.push(category);
       query += ` AND category = $${params.length}`;
@@ -47,40 +83,47 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// Accepts a real uploaded file (multipart/form-data, field name "file").
-// If no file is attached, falls back to generating a placeholder text file
-// so the record always has something real to download instead of 404ing.
-router.post('/', requireAuth, requireAdmin, upload.single('file'), async (req, res) => {
-  const { title, category, audience } = req.body;
-  if (!title) return res.status(400).json({ error: 'title is required' });
+// POST /api/documents — admin upload
+router.post('/', requireAuth, requireAdmin, (req, res) => {
+  upload.single('file')(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
 
-  let fileUrl;
-  if (req.file) {
-    fileUrl = `/files/${req.file.filename}`;
-  } else {
-    const filename = `${slugify(title)}-${Date.now()}.txt`;
-    const content = `${title}\n${category || ''}\n\nThis is a placeholder file generated for the CampusPulse demo.\nReplace with a real uploaded file in production.\n`;
-    fs.writeFileSync(path.join(filesDir, filename), content);
-    fileUrl = `/files/${filename}`;
-  }
+    const { title, category, audience } = req.body;
+    if (!title) return res.status(400).json({ error: 'title is required' });
 
-  try {
-    const { rows: [user] } = await pool.query(`SELECT university_id FROM users WHERE id = $1`, [req.user.id]);
-    const { rows } = await pool.query(
-      `INSERT INTO documents (university_id, title, category, audience, file_url)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [user?.university_id || null, title, category || 'Study Material', audience || 'All Students', fileUrl]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create document' });
-  }
+    let fileUrl;
+    if (req.file) {
+      fileUrl = `/files/${req.file.filename}`;
+    } else {
+      const filename = `${slugify(title)}-${Date.now()}.txt`;
+      const content = `${title}\n\nPlaceholder file for CampusPulse demo.\n`;
+      fs.writeFileSync(path.join(filesDir, filename), content);
+      fileUrl = `/files/${filename}`;
+    }
+
+    try {
+      const { rows } = await pool.query(
+        `INSERT INTO documents (university_id, title, category, audience, file_url)
+         VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+        [req.user.university_id, title, category || 'Study Material', audience || 'All Students', fileUrl]
+      );
+      res.status(201).json(rows[0]);
+    } catch (dbErr) {
+      console.error(dbErr);
+      res.status(500).json({ error: 'Failed to create document' });
+    }
+  });
 });
 
+// DELETE /api/documents/:id — admin, university-scoped
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Invalid id' });
   try {
-    const { rowCount } = await pool.query(`DELETE FROM documents WHERE id = $1`, [req.params.id]);
+    const { rowCount } = await pool.query(
+      `DELETE FROM documents WHERE id = $1 AND university_id = $2`,
+      [id, req.user.university_id]
+    );
     if (!rowCount) return res.status(404).json({ error: 'Document not found' });
     res.status(204).send();
   } catch (err) {

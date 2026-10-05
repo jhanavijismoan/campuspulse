@@ -130,6 +130,9 @@ export const api = {
   studentQueries: () => request('/student-queries'),
   updateStudentQuery: (id, payload) => request(`/student-queries/${id}`, { method: 'PATCH', body: payload }),
 
+  // search
+  search: (q) => request(`/search?q=${encodeURIComponent(q)}`),
+
   // seating
   mySeating: () => request('/seating/me'),
   seatingHallChart: (sessionId) => request(`/seating/sessions/${sessionId}/hall-chart`),

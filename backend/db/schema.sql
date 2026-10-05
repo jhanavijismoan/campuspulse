@@ -80,9 +80,10 @@ CREATE TABLE announcements (
   event_date        DATE,
   scheduled_at      TIMESTAMPTZ,
   priority          TEXT CHECK (priority IN ('Low', 'Medium', 'High')),
-  status            TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'processing', 'ready_to_publish', 'scheduled', 'published', 'archived')),
-  created_by        INTEGER REFERENCES users(id) ON DELETE SET NULL,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+  status                TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'processing', 'ready_to_publish', 'scheduled', 'published', 'archived')),
+  notification_sent_at  TIMESTAMPTZ,
+  created_by            INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ---------- Notifications ----------
