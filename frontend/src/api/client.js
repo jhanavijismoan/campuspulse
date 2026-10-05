@@ -115,7 +115,8 @@ export const api = {
 
   // pulse ai
   aiSuggestions: () => request('/ai/suggestions'),
-  askAi: (message) => request('/ai/ask', { method: 'POST', body: { message } }),
+  askAi: (message, history) => request('/ai/ask', { method: 'POST', body: { message, history } }),
+  aiStatus: () => request('/ai/status'),
 
   // admin teaching workflow
   classes: () => request('/classes'),
