@@ -269,6 +269,87 @@ const navigate_to = {
   },
 };
 
+// ── Attendance tools ──────────────────────────────────────────────────────────
+
+const get_student_attendance = {
+  name: 'get_student_attendance',
+  description: 'Get the student\'s attendance summary across all subjects. Returns conducted, present, absent, and percentage for each subject.',
+  parameters: { type: 'object', properties: {}, required: [] },
+  roles: ['student'],
+  async run({ userId, pool }) {
+    const { rows: csRows } = await pool.query(
+      `SELECT cs.id AS class_student_id, cs.class_id, c.subject_name, c.attendance_type
+       FROM class_students cs JOIN classes c ON c.id = cs.class_id
+       WHERE cs.student_id = $1 ORDER BY c.id ASC`,
+      [userId]
+    );
+    if (!csRows.length) return { found: false, message: 'No attendance records found. You may not be enrolled in any classes yet.' };
+
+    const subjects = [];
+    let totalConducted = 0, totalPresent = 0;
+    for (const cs of csRows) {
+      const { rows } = await pool.query(
+        `SELECT status FROM attendance_records WHERE class_id=$1 AND class_student_id=$2`,
+        [cs.class_id, cs.class_student_id]
+      );
+      const conducted = rows.length;
+      const present = rows.filter((r) => ['present', 'late', 'cl'].includes(r.status)).length;
+      const absent = rows.filter((r) => r.status === 'absent').length;
+      const pct = conducted > 0 ? Math.round((present / conducted) * 10000) / 100 : null;
+      totalConducted += conducted;
+      totalPresent += present;
+      subjects.push({ subject: cs.subject_name, conducted, present, absent, pct_without_cl: pct, below_75: pct != null && pct < 75 });
+    }
+    const overall_pct = totalConducted > 0 ? Math.round((totalPresent / totalConducted) * 10000) / 100 : null;
+    const at_risk = subjects.filter((s) => s.below_75);
+    return { found: true, subjects, total_conducted: totalConducted, total_present: totalPresent, overall_pct, at_risk_count: at_risk.length, at_risk_subjects: at_risk.map((s) => s.subject) };
+  },
+};
+
+const get_student_attendance_by_subject = {
+  name: 'get_student_attendance_by_subject',
+  description: 'Get the student\'s attendance for a specific subject by name.',
+  parameters: { type: 'object', properties: { subject: { type: 'string', description: 'Subject name (partial match ok)' } }, required: ['subject'] },
+  roles: ['student'],
+  async run({ userId, pool }, { subject }) {
+    const q = `%${(subject || '').toLowerCase()}%`;
+    const { rows: csRows } = await pool.query(
+      `SELECT cs.id AS class_student_id, cs.class_id, c.subject_name
+       FROM class_students cs JOIN classes c ON c.id = cs.class_id
+       WHERE cs.student_id = $1 AND LOWER(c.subject_name) LIKE $2 LIMIT 1`,
+      [userId, q]
+    );
+    if (!csRows.length) return { found: false, message: `No subject matching "${subject}" found in your enrolled classes.` };
+    const cs = csRows[0];
+    const { rows } = await pool.query(
+      `SELECT status FROM attendance_records WHERE class_id=$1 AND class_student_id=$2`,
+      [cs.class_id, cs.class_student_id]
+    );
+    const conducted = rows.length;
+    const present = rows.filter((r) => ['present', 'late', 'cl'].includes(r.status)).length;
+    const absent = rows.filter((r) => r.status === 'absent').length;
+    const pct = conducted > 0 ? Math.round((present / conducted) * 10000) / 100 : null;
+    return { found: true, subject: cs.subject_name, conducted, present, absent, pct_without_cl: pct, below_75: pct != null && pct < 75 };
+  },
+};
+
+const get_admin_class_attendance_summary = {
+  name: 'get_admin_class_attendance_summary',
+  description: 'Get attendance summary for all classes taught by this admin/teacher.',
+  parameters: { type: 'object', properties: {}, required: [] },
+  roles: ['admin'],
+  async run({ userId, pool }) {
+    const { rows } = await pool.query(
+      `SELECT c.id, c.subject_name, c.program, c.section, c.semester,
+              (SELECT COUNT(DISTINCT attendance_date) FROM attendance_records ar WHERE ar.class_id = c.id) AS sessions_conducted,
+              (SELECT COUNT(*) FROM class_students cs WHERE cs.class_id = c.id) AS total_students
+       FROM classes c WHERE c.teacher_id = $1 ORDER BY c.subject_name`,
+      [userId]
+    );
+    return { classes: rows };
+  },
+};
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 
 const ALL_TOOLS = [
@@ -285,6 +366,9 @@ const ALL_TOOLS = [
   get_student_query_summary,
   get_my_classes,
   get_upcoming_events,
+  get_student_attendance,
+  get_student_attendance_by_subject,
+  get_admin_class_attendance_summary,
   find_page,
   navigate_to,
 ];

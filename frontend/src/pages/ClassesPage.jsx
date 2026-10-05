@@ -54,7 +54,10 @@ export default function ClassesPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-navy-950 truncate">{c.subject_name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{c.program} &middot; Section {c.section}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                    {c.program} · {c.semester || ''} · Section {c.section}
+                    {c.attendance_type ? ` · ${c.attendance_type}` : ''}
+                  </p>
                   </div>
                   <div className="h-9 w-9 rounded-full bg-brand-50 flex items-center justify-center shrink-0 text-brand-600">
                     <Users className="h-4 w-4" />

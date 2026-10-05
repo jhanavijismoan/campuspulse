@@ -1,58 +1,15 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
-import { AlertTriangle, CheckCircle2, BookOpen } from 'lucide-react';
+import { AlertTriangle, BookOpen, TrendingDown } from 'lucide-react';
 
-function Ring({ pct }) {
-  const r = 28;
-  const circumference = 2 * Math.PI * r;
-  const dash = pct != null ? (pct / 100) * circumference : 0;
-  const color = pct == null ? '#e5e7eb' : pct < 75 ? '#ef4444' : pct < 85 ? '#f59e0b' : '#22c55e';
-
-  return (
-    <svg width="72" height="72" className="shrink-0">
-      <circle cx="36" cy="36" r={r} fill="none" stroke="#f3f4f6" strokeWidth="6" />
-      {pct != null && (
-        <circle
-          cx="36" cy="36" r={r} fill="none"
-          stroke={color} strokeWidth="6"
-          strokeDasharray={`${dash} ${circumference}`}
-          strokeLinecap="round"
-          transform="rotate(-90 36 36)"
-        />
-      )}
-      <text x="36" y="40" textAnchor="middle" fontSize="13" fontWeight="700" fill={color}>
-        {pct != null ? `${pct}%` : '—'}
-      </text>
-    </svg>
-  );
-}
-
-function SubjectCard({ subject }) {
-  const { subject_name, total_classes, present, absent, attendance_pct } = subject;
-  const low = attendance_pct != null && attendance_pct < 75;
-  const borderColor = low ? 'border-l-red-500' : attendance_pct >= 85 ? 'border-l-green-500' : 'border-l-amber-400';
-
-  return (
-    <div className={`bg-white rounded-xl p-4 flex items-center gap-4 shadow-sm border border-gray-100 border-l-4 ${borderColor}`}>
-      <Ring pct={attendance_pct} />
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-navy-950 text-sm">{subject_name}</p>
-        <p className="text-xs text-gray-400 mt-0.5">
-          {present}/{total_classes} classes attended
-          {absent > 0 && ` · ${absent} absent`}
-        </p>
-        {low && (
-          <div className="flex items-center gap-1 mt-1 text-xs text-red-600 font-medium">
-            <AlertTriangle className="h-3 w-3" />
-            Below 75% — attendance shortage
-          </div>
-        )}
-      </div>
-      {!low && attendance_pct >= 85 && (
-        <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-      )}
-    </div>
-  );
+function PctBadge({ pct }) {
+  if (pct == null) return <span className="text-gray-300">—</span>;
+  const cls = pct < 75
+    ? 'text-red-600 font-bold'
+    : pct < 85
+    ? 'text-amber-600 font-semibold'
+    : 'text-green-600 font-semibold';
+  return <span className={cls}>{pct.toFixed(2)}%</span>;
 }
 
 export default function AttendancePage() {
@@ -66,64 +23,115 @@ export default function AttendancePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const withData = subjects.filter((s) => s.total_classes > 0);
-  const totalPresent = withData.reduce((s, x) => s + x.present, 0);
-  const totalClasses = withData.reduce((s, x) => s + x.total_classes, 0);
-  const overallPct = totalClasses > 0 ? Math.round((totalPresent / totalClasses) * 100) : null;
-  const atRisk = withData.filter((s) => s.attendance_pct != null && s.attendance_pct < 75);
+  const withData = subjects.filter((s) => s.conducted > 0);
+  const totalConducted = withData.reduce((a, s) => a + s.conducted, 0);
+  const totalPresent = withData.reduce((a, s) => a + s.present, 0);
+  const totalAbsent = withData.reduce((a, s) => a + s.absent, 0);
+  const overallPct = totalConducted > 0
+    ? Math.round((totalPresent / totalConducted) * 10000) / 100
+    : null;
+  const atRisk = withData.filter((s) => s.pct_without_cl != null && s.pct_without_cl < 75);
 
   if (loading) {
     return (
-      <div className="space-y-4 max-w-2xl mx-auto">
+      <div className="space-y-4 max-w-5xl mx-auto">
         <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
-        {[1,2,3,4,5].map((i) => (
-          <div key={i} className="h-20 bg-gray-200 rounded-xl animate-pulse" />
-        ))}
+        <div className="h-64 bg-gray-200 rounded-xl animate-pulse" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-navy-950">My Attendance</h1>
         <p className="text-sm text-gray-500 mt-1">Subject-wise attendance for the current semester</p>
       </div>
 
-      {/* Overall summary */}
-      {overallPct != null && (
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-5">
-          <Ring pct={overallPct} />
+      {/* At-risk warnings */}
+      {atRisk.length > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold text-navy-950">Overall Attendance</p>
-            <p className="text-sm text-gray-500">{totalPresent} of {totalClasses} total classes</p>
-            {atRisk.length > 0 && (
-              <p className="text-xs text-red-600 font-medium mt-1">
-                {atRisk.length} subject{atRisk.length > 1 ? 's' : ''} below 75%
-              </p>
-            )}
+            <p className="text-sm font-semibold text-red-700">Attendance shortage detected</p>
+            <p className="text-sm text-red-600 mt-0.5">
+              {atRisk.map((s) => s.subject_name).join(', ')} — below 75% minimum requirement.
+            </p>
           </div>
         </div>
       )}
 
-      {/* Per-subject */}
       {subjects.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
+        <div className="bg-white rounded-2xl p-10 text-center shadow-sm border border-gray-100">
           <BookOpen className="h-8 w-8 text-gray-300 mx-auto mb-2" />
           <p className="text-sm text-gray-400">No attendance data available yet.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {subjects
-            .sort((a, b) => (a.attendance_pct ?? 100) - (b.attendance_pct ?? 100))
-            .map((s) => (
-              <SubjectCard key={s.class_id} subject={s} />
-            ))}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Sl No</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Subject Name</th>
+                  <th className="text-center px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Attendance Type</th>
+                  <th className="text-center px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Conducted</th>
+                  <th className="text-center px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Present</th>
+                  <th className="text-center px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Absent</th>
+                  <th className="text-center px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">% without CL</th>
+                  <th className="text-center px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">% with CL</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {subjects.map((s, idx) => {
+                  const low = s.pct_without_cl != null && s.pct_without_cl < 75;
+                  return (
+                    <tr key={s.class_id} className={low ? 'bg-red-50/40' : 'hover:bg-gray-50/50'}>
+                      <td className="px-5 py-4 text-gray-500">{idx + 1}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-navy-950">{s.subject_name}</span>
+                          {low && <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-center text-gray-600">{s.attendance_type || 'Theory'}</td>
+                      <td className="px-4 py-4 text-center font-semibold text-teal-600">{s.conducted}</td>
+                      <td className="px-4 py-4 text-center font-semibold text-teal-600">{s.present}</td>
+                      <td className="px-4 py-4 text-center font-semibold text-red-500">{s.absent}</td>
+                      <td className="px-4 py-4 text-center">
+                        <PctBadge pct={s.pct_without_cl} />
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <PctBadge pct={s.pct_with_cl} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {/* Totals row */}
+              {withData.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-gray-200 bg-gray-50 font-semibold">
+                    <td colSpan={3} className="px-5 py-4 text-right text-gray-700 text-xs uppercase tracking-wide">Total</td>
+                    <td className="px-4 py-4 text-center text-teal-700">{totalConducted}</td>
+                    <td className="px-4 py-4 text-center text-teal-700">{totalPresent}</td>
+                    <td className="px-4 py-4 text-center text-red-600">{totalAbsent}</td>
+                    <td className="px-4 py-4 text-center">
+                      <PctBadge pct={overallPct} />
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <PctBadge pct={overallPct} />
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
         </div>
       )}
 
       <p className="text-xs text-gray-400 text-center">
-        Minimum required: 75% per subject. Contact your teacher for any discrepancies.
+        Minimum required attendance: 75% per subject. Contact your teacher for any discrepancies.
       </p>
     </div>
   );

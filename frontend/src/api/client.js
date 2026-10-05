@@ -136,9 +136,12 @@ export const api = {
 
   // admin teaching workflow
   classes: () => request('/classes'),
+  createClass: (payload) => request('/classes', { method: 'POST', body: payload }),
   classRoster: (id) => request(`/classes/${id}/roster`),
+  classSessions: (id) => request(`/classes/${id}/sessions`),
   classAttendance: (id, date) => request(`/classes/${id}/attendance?date=${date}`),
   saveAttendance: (id, payload) => request(`/classes/${id}/attendance`, { method: 'POST', body: payload }),
+  classStats: (id) => request(`/classes/${id}/stats`),
   pendingTasks: () => request('/pending-tasks'),
   createPendingTask: (payload) => request('/pending-tasks', { method: 'POST', body: payload }),
   updatePendingTask: (id, payload) => request(`/pending-tasks/${id}`, { method: 'PATCH', body: payload }),

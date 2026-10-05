@@ -22,10 +22,10 @@ function checkRateLimit(userId) {
 }
 
 const STUDENT_SUGGESTED_PROMPTS = [
+  'What is my attendance?',
+  'Which subject has my lowest attendance?',
   'When is my next CIA?',
-  'Where is my seating plan?',
   'What assignments are due this week?',
-  'Where can I find my documents and forms?',
   'Are there internships suitable for me?',
 ];
 
