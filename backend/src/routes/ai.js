@@ -8,6 +8,108 @@ const { getPagesForRole, isValidPath } = require('../lib/pageRegistry');
 
 const router = express.Router();
 
+// ── Quiz question bank (used when no AI provider is configured) ───────────────
+const QUIZ_BANK = {
+  'Business Communication': [
+    { q: 'Which of the following is an example of non-verbal communication?', opts: ['A) Email', 'B) Body language', 'C) Report', 'D) Telephone call'], ans: 'B) Body language', exp: 'Non-verbal communication includes gestures, facial expressions, posture, and eye contact.' },
+    { q: 'The 7 Cs of communication include all EXCEPT:', opts: ['A) Clarity', 'B) Conciseness', 'C) Creativity', 'D) Correctness'], ans: 'C) Creativity', exp: 'The 7 Cs are: Clear, Concise, Correct, Complete, Considerate, Concrete, and Courteous.' },
+    { q: 'A formal written communication sent outside an organisation is called a:', opts: ['A) Memo', 'B) Circular', 'C) Business letter', 'D) Notice'], ans: 'C) Business letter', exp: 'Business letters are formal external communications; memos and circulars are internal.' },
+    { q: 'Which listening type requires the listener to evaluate and judge the message?', opts: ['A) Empathetic listening', 'B) Critical listening', 'C) Appreciative listening', 'D) Informational listening'], ans: 'B) Critical listening', exp: 'Critical listening involves analysing and evaluating the content of a message.' },
+    { q: 'The grapevine in an organisation refers to:', opts: ['A) Official communication channels', 'B) Written policies', 'C) Informal communication network', 'D) Electronic communication'], ans: 'C) Informal communication network', exp: 'The grapevine is the informal, unofficial communication channel in an organisation.' },
+    { q: 'Downward communication flows from:', opts: ['A) Subordinates to superiors', 'B) Superiors to subordinates', 'C) Peer to peer', 'D) External stakeholders to management'], ans: 'B) Superiors to subordinates', exp: 'Downward communication moves from higher to lower levels of the hierarchy.' },
+    { q: 'Which of the following is a barrier to effective communication?', opts: ['A) Active listening', 'B) Clear language', 'C) Semantic noise', 'D) Feedback'], ans: 'C) Semantic noise', exp: 'Semantic noise occurs when words have different meanings for sender and receiver.' },
+    { q: 'A memo is primarily used for:', opts: ['A) External client correspondence', 'B) Internal communication within an organisation', 'C) Public announcements', 'D) Legal documentation'], ans: 'B) Internal communication within an organisation', exp: 'Memos are brief internal documents sent between departments or employees.' },
+    { q: 'Proxemics in non-verbal communication refers to:', opts: ['A) Use of time', 'B) Use of space and physical distance', 'C) Tone of voice', 'D) Written symbols'], ans: 'B) Use of space and physical distance', exp: 'Proxemics is the study of how physical distance between people affects communication.' },
+    { q: 'An executive summary in a business report should be:', opts: ['A) Longer than the report itself', 'B) A detailed technical analysis', 'C) A concise overview of the full report', 'D) Only the conclusions'], ans: 'C) A concise overview of the full report', exp: 'An executive summary provides a brief overview that allows readers to grasp key points quickly.' },
+    { q: 'Which presentation technique helps maintain audience engagement?', opts: ['A) Reading directly from slides', 'B) Eye contact and interaction', 'C) Using technical jargon', 'D) Facing the screen while speaking'], ans: 'B) Eye contact and interaction', exp: 'Eye contact and audience interaction keep listeners engaged and build rapport.' },
+    { q: 'Feedback in the communication process is important because it:', opts: ['A) Ends the communication', 'B) Confirms the message was received and understood', 'C) Creates noise', 'D) Is only needed in written communication'], ans: 'B) Confirms the message was received and understood', exp: 'Feedback closes the communication loop and confirms understanding.' },
+  ],
+  'Marketing Management': [
+    { q: 'The marketing mix originally consisted of how many elements?', opts: ['A) 3', 'B) 4', 'C) 5', 'D) 7'], ans: 'B) 4', exp: 'The original 4 Ps of marketing are Product, Price, Place, and Promotion.' },
+    { q: 'Market segmentation is the process of:', opts: ['A) Selling to all customers equally', 'B) Dividing a market into distinct groups with similar needs', 'C) Setting a uniform price for all customers', 'D) Distributing goods to all regions'], ans: 'B) Dividing a market into distinct groups with similar needs', exp: 'Segmentation divides heterogeneous markets into homogeneous sub-groups for targeted marketing.' },
+    { q: 'A product that has reached peak sales and faces declining growth is in which stage of the PLC?', opts: ['A) Introduction', 'B) Growth', 'C) Maturity', 'D) Decline'], ans: 'C) Maturity', exp: 'The maturity stage is characterised by peak sales, intense competition, and slowing growth.' },
+    { q: 'Price skimming strategy involves:', opts: ['A) Setting a low initial price to gain market share', 'B) Setting a high initial price and lowering it over time', 'C) Matching competitor prices', 'D) Offering frequent discounts'], ans: 'B) Setting a high initial price and lowering it over time', exp: 'Skimming maximises profit from early adopters before reducing the price for a broader market.' },
+    { q: 'Which of the following is an example of B2B marketing?', opts: ['A) A consumer buying groceries online', 'B) A manufacturer selling raw materials to a factory', 'C) A student purchasing a textbook', 'D) A tourist booking a hotel room'], ans: 'B) A manufacturer selling raw materials to a factory', exp: 'B2B (business-to-business) marketing involves transactions between companies.' },
+    { q: 'Customer Relationship Management (CRM) primarily aims to:', opts: ['A) Reduce advertising spend', 'B) Manage supplier contracts', 'C) Build and maintain long-term customer relationships', 'D) Automate manufacturing processes'], ans: 'C) Build and maintain long-term customer relationships', exp: 'CRM focuses on acquiring, retaining, and enhancing relationships with profitable customers.' },
+    { q: 'Which promotional tool is most suitable for building brand image over the long term?', opts: ['A) Sales promotion', 'B) Advertising', 'C) Personal selling', 'D) Direct mail'], ans: 'B) Advertising', exp: 'Advertising reaches mass audiences consistently and is effective for long-term brand building.' },
+    { q: 'A product line extension involves:', opts: ['A) Introducing a completely new product category', 'B) Adding new variants within an existing product line', 'C) Reducing the number of products offered', 'D) Rebranding the company'], ans: 'B) Adding new variants within an existing product line', exp: 'Line extensions add sizes, flavours, or variants under the same brand name.' },
+    { q: 'The Boston Consulting Group (BCG) matrix classifies products into:', opts: ['A) Strengths, Weaknesses, Opportunities, Threats', 'B) Stars, Cash Cows, Question Marks, Dogs', 'C) Premium, Economy, Mid-range, Luxury', 'D) Core, Actual, Augmented, Potential'], ans: 'B) Stars, Cash Cows, Question Marks, Dogs', exp: 'The BCG matrix plots business units based on market growth rate and relative market share.' },
+    { q: 'Direct marketing differs from advertising in that it:', opts: ['A) Targets a mass audience', 'B) Does not seek a response from customers', 'C) Seeks a direct, measurable response from targeted individuals', 'D) Only uses television and print media'], ans: 'C) Seeks a direct, measurable response from targeted individuals', exp: 'Direct marketing is personalised and response-driven, unlike mass advertising.' },
+    { q: 'Penetration pricing is best suited when:', opts: ['A) The market is price-insensitive', 'B) You want rapid market share growth with a low initial price', 'C) The product is a luxury item', 'D) Production costs are very high'], ans: 'B) You want rapid market share growth with a low initial price', exp: 'Penetration pricing quickly builds volume and discourages competition with a low entry price.' },
+    { q: 'The process of creating a distinctive image for a product in the customer\'s mind is called:', opts: ['A) Segmentation', 'B) Targeting', 'C) Positioning', 'D) Differentiation'], ans: 'C) Positioning', exp: 'Positioning defines how a brand is perceived relative to competitors in the customer\'s mind.' },
+  ],
+  'Corporate Accounting': [
+    { q: 'Which accounting standard governs the preparation of consolidated financial statements in India?', opts: ['A) AS 10', 'B) AS 21', 'C) AS 17', 'D) AS 26'], ans: 'B) AS 21', exp: 'AS 21 (Consolidated Financial Statements) prescribes how to prepare group financial statements.' },
+    { q: 'Under the Companies Act 2013, the minimum number of directors for a public limited company is:', opts: ['A) 2', 'B) 3', 'C) 5', 'D) 7'], ans: 'B) 3', exp: 'Section 149 of the Companies Act 2013 requires a minimum of 3 directors for a public company.' },
+    { q: 'Goodwill on consolidation arises when:', opts: ['A) The subsidiary earns a profit', 'B) The cost of investment exceeds the proportionate net assets acquired', 'C) The parent company sells shares', 'D) Dividends are paid by the subsidiary'], ans: 'B) The cost of investment exceeds the proportionate net assets acquired', exp: 'Consolidation goodwill is the excess of purchase price over the fair value of net assets acquired.' },
+    { q: 'Capital Redemption Reserve is created when:', opts: ['A) Debentures are issued', 'B) Shares are forfeited', 'C) Preference shares are redeemed out of profits', 'D) Dividend is declared'], ans: 'C) Preference shares are redeemed out of profits', exp: 'CRR maintains the capital base when shares are redeemed from distributable profits.' },
+    { q: 'Which method of depreciation results in equal annual depreciation charges?', opts: ['A) Written-down value method', 'B) Straight-line method', 'C) Sum-of-years digits method', 'D) Units of production method'], ans: 'B) Straight-line method', exp: 'SLM spreads the depreciable amount evenly across the asset\'s useful life.' },
+    { q: 'A rights issue allows:', opts: ['A) Employees to buy shares at market price', 'B) Existing shareholders to buy new shares at a discount before they are offered to the public', 'C) The public to buy shares before existing shareholders', 'D) Debenture holders to convert debt into equity'], ans: 'B) Existing shareholders to buy new shares at a discount before they are offered to the public', exp: 'Rights issues give existing shareholders pre-emptive rights to maintain their ownership percentage.' },
+    { q: 'The profit and loss of a subsidiary is consolidated in the parent\'s accounts:', opts: ['A) Only when dividends are received', 'B) On a line-by-line basis from the date of acquisition', 'C) Only for wholly-owned subsidiaries', 'D) At the year-end market value'], ans: 'B) On a line-by-line basis from the date of acquisition', exp: 'Under AS 21, revenues and expenses of subsidiaries are consolidated line by line from acquisition.' },
+    { q: 'Minority interest in consolidated accounts represents:', opts: ['A) The parent company\'s share of net assets', 'B) The portion of subsidiary net assets not owned by the parent', 'C) Loans from external parties', 'D) Deferred tax liability'], ans: 'B) The portion of subsidiary net assets not owned by the parent', exp: 'Minority (non-controlling) interest is the equity in a subsidiary not attributable to the parent.' },
+    { q: 'Under the equity method of accounting for associates, the investment is initially recorded at:', opts: ['A) Fair value', 'B) Cost', 'C) Market price', 'D) Book value of net assets'], ans: 'B) Cost', exp: 'The equity method records the initial investment at cost and then adjusts for the investor\'s share of profits.' },
+    { q: 'Which of the following is NOT a statutory reserve under the Companies Act 2013?', opts: ['A) Capital Redemption Reserve', 'B) Securities Premium Account', 'C) General Reserve', 'D) Debenture Redemption Reserve'], ans: 'C) General Reserve', exp: 'General Reserve is a voluntary (discretionary) reserve; CRR, securities premium, and DRR are statutory.' },
+  ],
+  'Banking Law and Practice': [
+    { q: 'The Reserve Bank of India was established in:', opts: ['A) 1935', 'B) 1947', 'C) 1949', 'D) 1955'], ans: 'A) 1935', exp: 'The RBI was established on 1 April 1935 under the Reserve Bank of India Act, 1934.' },
+    { q: 'The Banking Regulation Act was enacted in:', opts: ['A) 1934', 'B) 1949', 'C) 1955', 'D) 1969'], ans: 'B) 1949', exp: 'The Banking Regulation Act 1949 is the primary legislation governing banking companies in India.' },
+    { q: 'Which committee recommended the nationalisation of 14 major commercial banks in India in 1969?', opts: ['A) Narasimham Committee', 'B) Gadgil Committee', 'C) Dehejia Committee', 'D) R.K. Hazari Committee'], ans: 'D) R.K. Hazari Committee', exp: 'The R.K. Hazari Committee\'s findings on concentration of economic power influenced the 1969 bank nationalisation.' },
+    { q: 'A Negotiable Instrument under the Negotiable Instruments Act 1881 includes:', opts: ['A) Share certificates', 'B) Promissory notes, bills of exchange, and cheques', 'C) Land deeds', 'D) Fixed deposit receipts'], ans: 'B) Promissory notes, bills of exchange, and cheques', exp: 'Section 13 of the NI Act defines negotiable instruments as promissory notes, bills of exchange, and cheques.' },
+    { q: 'CRR (Cash Reserve Ratio) is the percentage of:', opts: ['A) Total assets kept as cash', 'B) Net demand and time liabilities that banks must hold with the RBI', 'C) Profit set aside for reserves', 'D) Loans maintained as liquid assets'], ans: 'B) Net demand and time liabilities that banks must hold with the RBI', exp: 'CRR is a monetary policy tool requiring banks to maintain a fraction of their NDTL in cash with the RBI.' },
+    { q: 'A garnishee order directs a bank to:', opts: ['A) Issue a new chequebook', 'B) Stop payment on a cheque', 'C) Freeze or pay a customer\'s funds to a judgment creditor', 'D) Close a customer\'s account'], ans: 'C) Freeze or pay a customer\'s funds to a judgment creditor', exp: 'A garnishee order is a court order requiring the bank (garnishee) to pay the depositor\'s funds to a creditor.' },
+    { q: 'Priority Sector Lending (PSL) targets in India require banks to lend at least what percentage of ANBC to priority sectors?', opts: ['A) 20%', 'B) 30%', 'C) 40%', 'D) 50%'], ans: 'C) 40%', exp: 'Domestic commercial banks must direct at least 40% of Adjusted Net Bank Credit to priority sectors per RBI guidelines.' },
+    { q: 'Under which Act is a cheque defined as a bill of exchange drawn on a specified banker payable on demand?', opts: ['A) Companies Act 2013', 'B) Negotiable Instruments Act 1881', 'C) Banking Regulation Act 1949', 'D) RBI Act 1934'], ans: 'B) Negotiable Instruments Act 1881', exp: 'Section 6 of the Negotiable Instruments Act 1881 defines a cheque.' },
+    { q: 'SARFAESI Act 2002 allows banks to:', opts: ['A) Issue fresh loans without credit checks', 'B) Enforce security interests and recover NPAs without court intervention', 'C) Accept foreign deposits', 'D) Merge with foreign banks'], ans: 'B) Enforce security interests and recover NPAs without court intervention', exp: 'SARFAESI empowers secured creditors to seize and sell assets of defaulting borrowers without a court decree.' },
+    { q: 'KYC (Know Your Customer) norms are primarily aimed at:', opts: ['A) Maximising bank profits', 'B) Preventing money laundering and financial fraud', 'C) Reducing interest rates', 'D) Expanding credit limits'], ans: 'B) Preventing money laundering and financial fraud', exp: 'KYC norms help banks verify customer identity, thereby preventing money laundering and terrorist financing.' },
+  ],
+  'General English': [
+    { q: 'Which of the following sentences is grammatically correct?', opts: ['A) She don\'t know the answer.', 'B) She doesn\'t knows the answer.', 'C) She doesn\'t know the answer.', 'D) She do not knows the answer.'], ans: 'C) She doesn\'t know the answer.', exp: 'With third-person singular subjects, we use "doesn\'t" followed by the base form of the verb.' },
+    { q: 'The word "ameliorate" means:', opts: ['A) To worsen', 'B) To improve', 'C) To repeat', 'D) To complain'], ans: 'B) To improve', exp: '"Ameliorate" means to make a bad situation better or more tolerable.' },
+    { q: 'Identify the figure of speech in: "The world is a stage."', opts: ['A) Simile', 'B) Personification', 'C) Metaphor', 'D) Hyperbole'], ans: 'C) Metaphor', exp: 'A metaphor makes a direct comparison without using "like" or "as".' },
+    { q: 'Choose the correct passive voice: "The manager signed the document."', opts: ['A) The document is signed by the manager.', 'B) The document was signed by the manager.', 'C) The document has been signed by the manager.', 'D) The document signed by the manager.'], ans: 'B) The document was signed by the manager.', exp: 'The active sentence is in simple past tense; passive voice uses "was/were + past participle".' },
+    { q: 'The prefix "mis-" in the word "mismanage" means:', opts: ['A) Again', 'B) Not', 'C) Wrongly', 'D) Under'], ans: 'C) Wrongly', exp: 'The prefix "mis-" indicates something done wrongly or badly.' },
+    { q: 'Which type of essay presents arguments on both sides of an issue?', opts: ['A) Descriptive essay', 'B) Narrative essay', 'C) Argumentative essay', 'D) Expository essay'], ans: 'C) Argumentative essay', exp: 'Argumentative essays present multiple viewpoints and evidence for both sides of a debate.' },
+    { q: 'The antonym of "verbose" is:', opts: ['A) Wordy', 'B) Concise', 'C) Eloquent', 'D) Fluent'], ans: 'B) Concise', exp: '"Verbose" means using more words than necessary; its antonym is "concise" — brief and to the point.' },
+    { q: 'A précis is:', opts: ['A) A full-length summary with the author\'s opinion', 'B) A condensed version of a text in the writer\'s own words, retaining the original meaning', 'C) A detailed critique of a passage', 'D) A word-for-word reproduction of a text'], ans: 'B) A condensed version of a text in the writer\'s own words, retaining the original meaning', exp: 'A précis captures the essential meaning of a passage in one-third its length, without adding opinions.' },
+  ],
+  'Information Technology for Managers': [
+    { q: 'ERP stands for:', opts: ['A) Enterprise Resource Planning', 'B) Electronic Resource Processing', 'C) Enterprise Reporting Protocol', 'D) Electronic Routing Program'], ans: 'A) Enterprise Resource Planning', exp: 'ERP integrates core business processes — finance, HR, supply chain — into a single system.' },
+    { q: 'Which of the following is NOT a characteristic of cloud computing?', opts: ['A) On-demand self-service', 'B) Resource pooling', 'C) Physical hardware ownership by the user', 'D) Broad network access'], ans: 'C) Physical hardware ownership by the user', exp: 'Cloud computing provides shared resources over the internet; users do not own the physical hardware.' },
+    { q: 'A Decision Support System (DSS) is primarily used to:', opts: ['A) Process routine transactions', 'B) Support complex decision-making using data and models', 'C) Manage employee payroll', 'D) Store customer records'], ans: 'B) Support complex decision-making using data and models', exp: 'DSS helps managers analyse large data sets and evaluate scenarios to make semi-structured decisions.' },
+    { q: 'SQL is used to:', opts: ['A) Design user interfaces', 'B) Create network protocols', 'C) Query and manipulate relational databases', 'D) Develop mobile applications'], ans: 'C) Query and manipulate relational databases', exp: 'SQL (Structured Query Language) is the standard language for managing relational databases.' },
+    { q: 'Phishing is an example of which type of cyber attack?', opts: ['A) Denial of Service', 'B) Social engineering', 'C) SQL injection', 'D) Man-in-the-middle'], ans: 'B) Social engineering', exp: 'Phishing tricks users into revealing credentials by impersonating trusted entities — a social engineering attack.' },
+    { q: 'The primary purpose of a firewall is to:', opts: ['A) Speed up internet connections', 'B) Encrypt all communications', 'C) Monitor and control incoming and outgoing network traffic', 'D) Store data securely'], ans: 'C) Monitor and control incoming and outgoing network traffic', exp: 'A firewall enforces security policies by filtering network traffic based on rules.' },
+    { q: 'Big Data is characterised by the 3 Vs. Which of the following is NOT one of them?', opts: ['A) Volume', 'B) Velocity', 'C) Validity', 'D) Variety'], ans: 'C) Validity', exp: 'The original 3 Vs of Big Data are Volume (scale), Velocity (speed), and Variety (different data types).' },
+    { q: 'An Executive Information System (EIS) is designed for:', opts: ['A) Operational staff managing daily tasks', 'B) Middle managers tracking departmental metrics', 'C) Senior executives requiring strategic overviews and key indicators', 'D) IT teams monitoring system performance'], ans: 'C) Senior executives requiring strategic overviews and key indicators', exp: 'EIS provides top-level management with easy access to key performance indicators and strategic information.' },
+    { q: 'Which of the following best describes a relational database?', opts: ['A) Data stored as files in a hierarchy', 'B) Data stored in interrelated tables with rows and columns', 'C) Data stored as unstructured text documents', 'D) Data stored in a single flat file'], ans: 'B) Data stored in interrelated tables with rows and columns', exp: 'Relational databases organise data into tables linked by primary and foreign keys.' },
+    { q: 'Agile methodology in software development emphasises:', opts: ['A) Extensive documentation before development begins', 'B) Rigid project phases with no changes once started', 'C) Iterative development, collaboration, and response to change', 'D) Outsourcing all development activities'], ans: 'C) Iterative development, collaboration, and response to change', exp: 'Agile uses short sprints, continuous feedback, and flexibility to adapt to changing requirements.' },
+  ],
+};
+
+function quizFallback(subject, topic, count, difficulty) {
+  // Find the best matching bank by subject (case-insensitive partial match)
+  const lc = (s) => s.toLowerCase();
+  const bankKey = Object.keys(QUIZ_BANK).find((k) => lc(subject).includes(lc(k)) || lc(k).includes(lc(subject)))
+    || Object.keys(QUIZ_BANK)[0];
+  const pool = QUIZ_BANK[bankKey];
+
+  // Filter by difficulty keyword in question (easy=shorter questions, hard=longer)
+  let filtered = pool;
+  if (difficulty === 'easy')   filtered = pool.filter((q) => q.q.length < 100);
+  if (difficulty === 'hard')   filtered = pool.filter((q) => q.q.length >= 100);
+  if (filtered.length < 3)    filtered = pool;
+
+  // Topic boost: prefer questions whose text mentions the topic
+  const lcTopic = lc(topic);
+  const boosted = filtered.filter((q) => lc(q.q).includes(lcTopic) || lc(q.exp).includes(lcTopic));
+  const base    = filtered.filter((q) => !lc(q.q).includes(lcTopic) && !lc(q.exp).includes(lcTopic));
+  const ordered = [...boosted, ...base];
+
+  // Shuffle and take count
+  const shuffled = ordered.sort(() => Math.random() - 0.5).slice(0, Math.min(count, ordered.length));
+  return shuffled.map((q) => ({ question: q.q, options: q.opts, answer: q.ans, explanation: q.exp }));
+}
+
 // Per-user rate limit: 20 req/min in-memory
 const rateLimitMap = new Map();
 function checkRateLimit(userId) {
@@ -527,13 +629,7 @@ router.post('/generate-quiz', requireAuth, async (req, res) => {
   if (count < 1 || count > 20) return res.status(400).json({ error: 'count must be 1-20' });
 
   if (!isAiConfigured()) {
-    const questions = Array.from({ length: Math.min(count, 3) }, (_, i) => ({
-      question: `${topic} — Question ${i + 1}: [Insert your question here]`,
-      options: ['Option A', 'Option B', 'Option C', 'Option D'],
-      answer: 'Option A',
-      explanation: 'Review the relevant section of the textbook.',
-    }));
-    return res.json({ questions, source: 'fallback' });
+    return res.json({ questions: quizFallback(subject, topic, count, difficulty), source: 'fallback' });
   }
 
   try {

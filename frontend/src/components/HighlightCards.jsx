@@ -22,6 +22,19 @@ const STATUS_CONFIG = {
   },
 };
 
+// Derive a sensible fallback route when the DB has no action_url
+function deriveActionUrl(item) {
+  if (item.action_url) return item.action_url;
+  switch (item.event_type) {
+    case 'exam':         return '/seating';
+    case 'assignment':   return '/my-week';
+    case 'presentation': return '/my-week';
+    case 'meeting':      return '/calendar';
+    case 'class':        return '/timetable';
+    default:             return '/my-week';
+  }
+}
+
 function iconFor(type) {
   if (type === 'exam') return AlertCircle;
   if (type === 'presentation' || type === 'assignment') return FolderKanban;
@@ -94,8 +107,8 @@ export default function HighlightCards({ items }) {
             </div>
 
             <button
-              onClick={() => item.action_url && navigate(item.action_url)}
-              className={`mt-auto text-white text-xs font-medium rounded-lg py-2.5 transition ${config.buttonClass} ${!item.action_url ? 'opacity-60 cursor-default' : ''}`}
+              onClick={() => navigate(deriveActionUrl(item))}
+              className={`mt-auto text-white text-xs font-medium rounded-lg py-2.5 transition ${config.buttonClass}`}
             >
               {item.action_label || 'View Details'}
             </button>

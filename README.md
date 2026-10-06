@@ -26,7 +26,7 @@ npm install
 cp .env.example .env      # then edit DATABASE_URL / JWT_SECRET as needed
 ```
 
-Create the database and load the schema + all feature migrations:
+Create the database and load the schema + all feature migrations (DDL only — no data):
 
 ```bash
 createdb campuspulse                      # or: psql -U postgres -c "CREATE DATABASE campuspulse;"
@@ -39,9 +39,11 @@ psql -U postgres -d campuspulse -f db/migrate_cia_marks.sql
 psql -U postgres -d campuspulse -f db/migrate_ai_queries_unique.sql
 ```
 
-Seed it with demo data (Mount Carmel University, student Jhanavi, sample exams/assignments/
-internships/documents/announcements — all dated relative to "today" so the dashboard always
-looks current):
+Then seed it with all demo data (Mount Carmel University, student Jhanavi with full BBA Sem 3C
+attendance/timetable/CIA marks, admin Dr. Adlene Portia Cardoza, exams/assignments/internships/
+documents/announcements — all dated relative to "today" so the dashboard always looks current).
+**Always run seed after migrations, never before** — the migrations create the tables that the
+seed populates.
 
 ```bash
 npm run seed

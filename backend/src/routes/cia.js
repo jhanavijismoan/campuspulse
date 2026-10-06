@@ -8,21 +8,21 @@ router.get('/', requireAuth, async (req, res) => {
   const { id: userId, role } = req.user;
 
   if (role === 'admin') {
-    // Admin: return all marks for their university classes
+    // Admin: return all marks for classes they teach (classes has no university_id, filter by teacher_id)
     const { class_id } = req.query;
-    const params = [req.user.university_id];
+    const params = [userId];
     let extra = '';
-    if (class_id) { extra = ' AND c.id = $2'; params.push(class_id); }
+    if (class_id) { extra = ' AND cm.class_id = $2'; params.push(class_id); }
     try {
       const { rows } = await pool.query(
         `SELECT cm.id, cm.class_id, c.subject_name, cm.student_id,
-                u.name AS student_name, cm.cia_number,
+                u.full_name AS student_name, cm.cia_number,
                 cm.marks_obtained, cm.max_marks, cm.published, cm.updated_at
          FROM cia_marks cm
          JOIN classes c ON c.id = cm.class_id
          JOIN users u ON u.id = cm.student_id
-         WHERE c.university_id = $1${extra}
-         ORDER BY c.subject_name, cm.cia_number, u.name`,
+         WHERE cm.class_id IN (SELECT id FROM classes WHERE teacher_id = $1)${extra}
+         ORDER BY c.subject_name, cm.cia_number, u.full_name`,
         params
       );
       return res.json(rows);
