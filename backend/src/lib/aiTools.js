@@ -143,6 +143,27 @@ const get_timetable = {
   },
 };
 
+// ── Student: CIA marks ───────────────────────────────────────────────────────
+
+const get_cia_marks = {
+  name: 'get_cia_marks',
+  description: "Get the student's published CIA (Continuous Internal Assessment) marks across all subjects.",
+  parameters: { type: 'object', properties: {}, required: [] },
+  roles: ['student'],
+  async run({ userId, pool }) {
+    const { rows } = await pool.query(
+      `SELECT c.subject_name, cm.cia_number, cm.marks_obtained, cm.max_marks
+       FROM cia_marks cm
+       JOIN classes c ON c.id = cm.class_id
+       WHERE cm.student_id = $1 AND cm.published = true
+       ORDER BY c.subject_name, cm.cia_number`,
+      [userId]
+    );
+    if (!rows.length) return { message: 'No CIA marks have been published yet.' };
+    return { cia_marks: rows };
+  },
+};
+
 // ── Student: internships ──────────────────────────────────────────────────────
 
 const get_internship_opportunities = {
@@ -524,6 +545,7 @@ const ALL_TOOLS = [
   get_upcoming_assignments,
   get_events_this_week,
   get_timetable,
+  get_cia_marks,
   // Student: internships & CV
   get_internship_opportunities,
   get_internship_matches,

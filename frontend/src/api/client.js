@@ -164,6 +164,9 @@ export const api = {
   // student academic pages
   studentAttendance: () => request('/student/attendance'),
   studentTimetable: () => request('/student/timetable'),
+  getCIAMarks: () => request('/cia'),
+  saveCIAMark: (payload) => request('/cia', { method: 'POST', body: payload }),
+  updateCIAMark: (id, payload) => request(`/cia/${id}`, { method: 'PATCH', body: payload }),
 
   // search
   search: (q) => request(`/search?q=${encodeURIComponent(q)}`),

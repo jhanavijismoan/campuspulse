@@ -68,23 +68,30 @@ router.get('/attendance', requireAuth, async (req, res) => {
 router.get('/timetable', requireAuth, async (req, res) => {
   const { id: userId } = req.user;
   try {
-    const { rows: events } = await pool.query(
-      `SELECT e.title, e.event_type, e.description, e.location, e.starts_at, e.ends_at, e.status
-       FROM events e
-       WHERE e.user_id = $1 AND e.event_type = 'class'
-       ORDER BY e.starts_at ASC`,
-      [userId]
-    );
-
     const { rows: classes } = await pool.query(
-      `SELECT c.subject_name, c.program, c.section, cs.roll_no
+      `SELECT c.id AS class_id, c.subject_name, c.program, c.section, cs.roll_no
        FROM class_students cs
        JOIN classes c ON c.id = cs.class_id
        WHERE cs.student_id = $1`,
       [userId]
     );
 
-    res.json({ events, classes });
+    const classIds = classes.map((c) => c.class_id);
+    let slots = [];
+    if (classIds.length > 0) {
+      const { rows } = await pool.query(
+        `SELECT ts.id, ts.class_id, ts.day_of_week, ts.start_time, ts.end_time,
+                ts.room, ts.slot_type, ts.label, c.subject_name
+         FROM timetable_slots ts
+         JOIN classes c ON c.id = ts.class_id
+         WHERE ts.class_id = ANY($1::int[])
+         ORDER BY ts.day_of_week, ts.start_time`,
+        [classIds]
+      );
+      slots = rows;
+    }
+
+    res.json({ slots, classes });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load timetable' });

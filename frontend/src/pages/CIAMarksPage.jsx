@@ -1,14 +1,6 @@
+import { useEffect, useState } from 'react';
+import { api } from '../api/client';
 import { BookCheck, TrendingUp, Award } from 'lucide-react';
-
-// Demo CIA marks data (BBA Sem 3) — these are illustrative only
-// Replace with live data once CIA marks table/API is implemented
-const CIA_DATA = [
-  { subject: 'Business Communication',   cia1: 23, cia2: null, maxPerCIA: 25, teacher: 'Dr. A. Cardoza' },
-  { subject: 'Marketing Management',     cia1: 21, cia2: null, maxPerCIA: 25, teacher: 'Dr. A. Cardoza' },
-  { subject: 'Corporate Accounting',     cia1: 19, cia2: null, maxPerCIA: 25, teacher: 'Dr. A. Cardoza' },
-  { subject: 'English Language',         cia1: 22, cia2: null, maxPerCIA: 25, teacher: 'Dr. A. Cardoza' },
-  { subject: 'Banking Law and Practice', cia1: 20, cia2: null, maxPerCIA: 25, teacher: 'Dr. A. Cardoza' },
-];
 
 function markColor(score, max) {
   const pct = (score / max) * 100;
@@ -17,24 +9,80 @@ function markColor(score, max) {
   return 'text-red-600 bg-red-50';
 }
 
+function groupBySubject(rows) {
+  const map = {};
+  for (const r of rows) {
+    if (!map[r.subject_name]) map[r.subject_name] = { subject_name: r.subject_name, max_marks: r.max_marks };
+    map[r.subject_name][`cia${r.cia_number}`] = parseFloat(r.marks_obtained);
+  }
+  return Object.values(map);
+}
+
 export default function CIAMarksPage() {
-  const totalEarned = CIA_DATA.reduce((s, r) => s + (r.cia1 ?? 0) + (r.cia2 ?? 0), 0);
-  const totalPossible = CIA_DATA.reduce((s, r) => s + r.maxPerCIA + (r.cia2 != null ? r.maxPerCIA : 0), 0);
-  const completedSubjects = CIA_DATA.filter((r) => r.cia1 != null).length;
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    api.getCIAMarks()
+      .then((data) => setRows(groupBySubject(data)))
+      .catch(() => setError('Could not load CIA marks. Please try again.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-4">
+        <div className="h-8 w-40 bg-gray-200 rounded animate-pulse" />
+        <div className="grid grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-gray-200 rounded-xl animate-pulse" />)}
+        </div>
+        {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-14 bg-gray-200 rounded-xl animate-pulse" />)}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-2xl font-semibold text-navy-950 mb-4">CIA Marks</h1>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">{error}</div>
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-4">
+        <h1 className="text-2xl font-semibold text-navy-950">CIA Marks</h1>
+        <div className="bg-white rounded-2xl p-10 text-center border border-gray-100 shadow-sm">
+          <BookCheck className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-400">No CIA marks have been published yet.</p>
+          <p className="text-xs text-gray-300 mt-1">Check back after your first CIA.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const cia1Scores = rows.filter((r) => r.cia1 != null).map((r) => r.cia1);
+  const completedSubjects = cia1Scores.length;
+  const cia1Avg = completedSubjects > 0 ? Math.round(cia1Scores.reduce((a, b) => a + b, 0) / completedSubjects) : 0;
+  const topScore = completedSubjects > 0 ? Math.max(...cia1Scores) : 0;
+  const maxPerCIA = rows[0]?.max_marks ?? 25;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-navy-950">CIA Marks</h1>
-        <p className="text-sm text-gray-500 mt-1">Continuous Internal Assessment — Semester 3</p>
+        <p className="text-sm text-gray-500 mt-1">Continuous Internal Assessment</p>
       </div>
 
       {/* Summary strip */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'CIA 1 Average', value: `${Math.round(CIA_DATA.reduce((s,r) => s + (r.cia1 ?? 0), 0) / completedSubjects)}/${CIA_DATA[0].maxPerCIA}`, icon: BookCheck, color: 'text-brand-600' },
-          { label: 'Subjects Done', value: `${completedSubjects}/${CIA_DATA.length}`, icon: TrendingUp, color: 'text-amber-600' },
-          { label: 'Top Score', value: `${Math.max(...CIA_DATA.map(r => r.cia1 ?? 0))}`, icon: Award, color: 'text-green-600' },
+          { label: 'CIA 1 Average', value: `${cia1Avg}/${maxPerCIA}`, icon: BookCheck, color: 'text-brand-600' },
+          { label: 'Subjects Done', value: `${completedSubjects}/${rows.length}`, icon: TrendingUp, color: 'text-amber-600' },
+          { label: 'Top Score', value: `${topScore}`, icon: Award, color: 'text-green-600' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
             <Icon className={`h-5 w-5 mx-auto mb-1 ${color}`} />
@@ -52,15 +100,15 @@ export default function CIAMarksPage() {
           <span className="text-center">CIA 2</span>
         </div>
 
-        {CIA_DATA.map((row) => (
-          <div key={row.subject} className="grid grid-cols-[1fr_80px_80px] px-5 py-3.5 border-b border-gray-50 last:border-0 items-center">
+        {rows.map((row) => (
+          <div key={row.subject_name} className="grid grid-cols-[1fr_80px_80px] px-5 py-3.5 border-b border-gray-50 last:border-0 items-center">
             <div>
-              <p className="text-sm font-medium text-navy-950">{row.subject}</p>
-              <p className="text-xs text-gray-400">{row.teacher} · Max {row.maxPerCIA}</p>
+              <p className="text-sm font-medium text-navy-950">{row.subject_name}</p>
+              <p className="text-xs text-gray-400">Max {row.max_marks}</p>
             </div>
             <div className="text-center">
               {row.cia1 != null ? (
-                <span className={`inline-block text-sm font-semibold px-2 py-0.5 rounded ${markColor(row.cia1, row.maxPerCIA)}`}>
+                <span className={`inline-block text-sm font-semibold px-2 py-0.5 rounded ${markColor(row.cia1, row.max_marks)}`}>
                   {row.cia1}
                 </span>
               ) : (
@@ -69,7 +117,7 @@ export default function CIAMarksPage() {
             </div>
             <div className="text-center">
               {row.cia2 != null ? (
-                <span className={`inline-block text-sm font-semibold px-2 py-0.5 rounded ${markColor(row.cia2, row.maxPerCIA)}`}>
+                <span className={`inline-block text-sm font-semibold px-2 py-0.5 rounded ${markColor(row.cia2, row.max_marks)}`}>
                   {row.cia2}
                 </span>
               ) : (
@@ -81,8 +129,7 @@ export default function CIAMarksPage() {
       </div>
 
       <p className="text-xs text-gray-400 text-center">
-        Marks are indicative. CIA 2 results will be updated after grading is complete.
-        Contact your teacher for any discrepancies.
+        Only published marks are shown. Contact your teacher for any discrepancies.
       </p>
     </div>
   );

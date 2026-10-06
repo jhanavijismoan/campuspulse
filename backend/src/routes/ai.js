@@ -88,7 +88,7 @@ ${pageList}
 
 IMPORTANT RULES:
 1. Always call the appropriate tool for real data. Never guess or make up attendance percentages, exam dates, seat numbers, or match scores.
-2. CIA marks/grades are NOT in the system yet — tell the user honestly.
+2. CIA marks are in the system — use get_cia_marks to fetch them. Only published marks are visible to students.
 3. ANSWER FIRST: give the actual answer before saying where to find it. Use navigate_to to add a quick link.
 4. For follow-up questions like "what about [Subject]?", use get_student_attendance_by_subject or get_internship_opportunities filtered by what the user asked.
 5. Be concise (under 80 words unless asked). Plain text only, no markdown headings. Short "- " bullet lists are fine.
@@ -219,13 +219,18 @@ async function answerFromRules(message, user, history) {
     return { reply: 'Seating plan is available on the Seating Plan page.', actions, source: 'rules' };
   }
 
-  // ── CIA marks (not in system) ─────────────────────────────────────────────
-  if (/cia\s*(?:1|2|3|i|ii|iii)?\s*(?:mark|grade|result|score)/i.test(lower) || /(?:mark|grade|result|score).*cia/i.test(lower)) {
-    return {
-      reply: 'CIA marks are not yet available in CampusPulse. Results are typically shared directly by your teacher or department.',
-      actions: [],
-      source: 'rules',
-    };
+  // ── CIA marks ────────────────────────────────────────────────────────────────
+  if (/cia\s*(?:1|2|3|i|ii|iii)?\s*(?:mark|grade|result|score)/i.test(lower) || /(?:mark|grade|result|score).*cia/i.test(lower) || /my\s*cia/i.test(lower)) {
+    try {
+      const result = JSON.parse(await runTool(ctx, 'get_cia_marks', {}));
+      const nav = JSON.parse(await runTool(ctx, 'navigate_to', { page_key: 'cia-marks', label: 'CIA Marks' }));
+      if (nav.path) actions.push({ type: 'navigate', label: nav.label, to: nav.path });
+      if (result.message) return { reply: result.message, actions, source: 'rules' };
+      const lines = result.cia_marks.map((m) => `• ${m.subject_name}: CIA ${m.cia_number} — ${m.marks_obtained}/${m.max_marks}`);
+      return { reply: `Here are your published CIA marks:\n\n${lines.join('\n')}`, actions, source: 'rules' };
+    } catch (_) {
+      return { reply: 'CIA marks are not available right now.', actions: [], source: 'rules' };
+    }
   }
 
   // ── Exam / CIA exam ───────────────────────────────────────────────────────
