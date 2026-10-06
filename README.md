@@ -26,11 +26,17 @@ npm install
 cp .env.example .env      # then edit DATABASE_URL / JWT_SECRET as needed
 ```
 
-Create the database and load the schema:
+Create the database and load the schema + all feature migrations:
 
 ```bash
 createdb campuspulse                      # or: psql -U postgres -c "CREATE DATABASE campuspulse;"
 psql -U postgres -d campuspulse -f db/schema.sql
+psql -U postgres -d campuspulse -f db/migrate_attendance.sql
+psql -U postgres -d campuspulse -f db/migrate_internships.sql
+psql -U postgres -d campuspulse -f db/migrate_cv_builder.sql
+psql -U postgres -d campuspulse -f db/migrate_timetable.sql
+psql -U postgres -d campuspulse -f db/migrate_cia_marks.sql
+psql -U postgres -d campuspulse -f db/migrate_ai_queries_unique.sql
 ```
 
 Seed it with demo data (Mount Carmel University, student Jhanavi, sample exams/assignments/
@@ -217,7 +223,8 @@ position and filters.
 
 - **Real**: auth (JWT + bcrypt), all CRUD for events/notifications/documents/internships, Postgres-backed queries for every dashboard widget, role-based access control, resume text extraction, CV/match generation, attendance records, seating assignments, student queries with replies, and **Pulse AI** (tool-calling agent with live DB tools for exams, attendance, seating, assignments, internships, documents, and navigation).
 - **Rule-based fallback (always on)**: when no AI provider is configured, Pulse AI, the Announcement Processor, AI draft replies, and the Quiz Generator all fall back to direct DB queries or template generators — nothing requires an API key to function.
-- **CIA Marks**: static demo data (no live grading system wired up yet).
+- **Timetable**: DB-backed (`timetable_slots` table) — weekly class schedule served from live data.
+- **CIA Marks**: DB-backed (`cia_marks` table) — admin-managed, per-student published marks with GET/POST/PATCH API.
 
 ## Next steps / things to wire up before production
 
@@ -226,4 +233,4 @@ position and filters.
 - Move `JWT_SECRET` and DB credentials into a proper secrets manager.
 - Add pagination to notifications/documents/internships once data volume grows.
 - CI: add a test suite before this goes further than a prototype.
-- CIA Marks: wire `/api/student/cia-marks` to real grade records once a grading system exists.
+- CIA Marks admin UI: an admin page to enter/publish marks per class (the API is ready at `/api/cia`).
